@@ -1,0 +1,1827 @@
+#+title: Emacs Configuration
+#+property: header-args :lexical t :results none
+#+startup: content
+#+todo: ORGANIZE(o) TODO(t) | DONE (d)
+
+* Elpaca setup
+#+begin_src emacs-lisp
+;;; -*- lexical-binding: t; -*-
+#+end_src
+
+#+begin_src emacs-lisp
+(setopt warning-suppress-types '((elpaca core stale 29.3.50)))
+(load (expand-file-name "elpaca-init" user-emacs-directory))
+#+end_src
+
+Now we make it so that =use-package= declarations are installed by Elpaca by default.
+
+#+begin_src emacs-lisp
+(setopt use-package-always-ensure t
+        use-package-always-defer t)
+#+end_src
+
+* Useful libraries
+** Doom
+Never forget your roots!!
+#+begin_src emacs-lisp
+(elpaca (doom-lib :host github
+                  :repo "doomemacs/doomemacs"
+                  :branch "master"
+                  :files ("lisp/doom-lib.el")))
+
+(elpaca-wait)
+(require 'doom-lib)
+#+end_src
+** GCMH
+#+begin_src emacs-lisp
+(use-package gcmh
+  :init
+  (gcmh-mode 1))
+#+end_src
+
+* Navigation and insertion
+** Basic
+#+begin_src emacs-lisp
+(keymap-set global-map "C-s" #'save-buffer)
+#+end_src
+
+** Custom leader
+This is pretty much a Hack but it is Short and it Works.
+
+#+begin_src emacs-lisp
+(defvar leader-key (kbd "SPC"))
+(defvar leader-alt-key (kbd "M-SPC"))
+#+end_src
+
+#+begin_src emacs-lisp
+(defun setmap (map &rest defs)
+  (while defs
+    (keymap-set map (car defs) (cadr defs))
+    (setq defs (cddr defs))))
+#+end_src
+
+#+begin_src emacs-lisp
+(defun modal-setmap (active-map map &rest defs)
+  (let ((new-map (make-sparse-keymap))
+        (new-leader (make-sparse-keymap)))
+    (set-keymap-parent new-map map)
+    (set-keymap-parent new-leader leader-map)
+    (apply #'setmap new-map defs)
+    (keymap-substitute new-leader map new-map)
+    (evil-define-key* 'normal active-map leader-key new-leader)
+    (evil-define-key* 'insert active-map leader-alt-key new-leader)))
+#+end_src
+
+** Keymaps
+#+begin_src emacs-lisp
+(defvar-keymap leader-map
+  :doc "Leader key keymap.")
+
+(defvar-keymap file-map
+  :doc "File actions keymap.")
+
+(defvar-keymap toggle-map
+  :doc "Toggle actions keymap.")
+
+(defvar-keymap buffer-map
+  :doc "Buffer actions keymap.")
+
+(defvar-keymap code-map
+  :doc "Code actions keymap.")
+
+(defvar-keymap window-map
+  :doc "Window actions keymap.")
+
+(defvar-keymap project-map
+  :doc "Mode actions keymap.")
+
+(defvar-keymap mode-map
+  :doc "Mode actions keymap.")
+
+(setmap file-map
+        "f" #'find-file
+        "c" #'copy-file
+        "s" #'save-buffer
+        "m" #'rename-file)
+
+(setmap toggle-map
+        "l" #'display-line-numbers-mode)
+
+(setmap buffer-map
+        "d" #'kill-buffer
+        "r" #'revert-buffer)
+
+(setmap leader-map
+        "w" (cons "Window" window-map)
+        "x" (cons "x" ctl-x-map)
+        "b" (cons "Buffer" buffer-map)
+        "c" (cons "Code" code-map)
+        "s" (cons "Search" search-map)
+        "p" (cons "Project" project-map)
+        "t" (cons "Toggle" toggle-map)
+        "f" (cons "File" file-map)
+        "m" (cons "Mode" mode-map)
+        "." #'find-file)
+#+end_src
+
+** TAB hook
+This functionality allows binding many keys to TAB via a hook. The command will run all commands in the hook in order and stop at the first function that returns non-nil.
+
+#+begin_src emacs-lisp
+(defvar tab-actions '(indent-for-tab-command)
+  "TAB actions hook.")
+
+(defun run-tab-actions ()
+  (interactive)
+  (cl-dolist (action tab-actions)
+    (when-let ((res (call-interactively action)))
+      (cl-return res))))
+
+(global-set-key (kbd "TAB") #'run-tab-actions)
+#+end_src
+
+** Smartparens
+#+begin_src emacs-lisp
+(use-package smartparens
+  :hook ((prog-mode text-mode) . smartparens-mode)
+  :config
+  (add-hook 'tab-actions 'sp-up-sexp 10)
+  (require 'smartparens-config))
+#+end_src
+
+** Link-hint
+#+begin_src emacs-lisp
+(use-package link-hint
+  :bind (:map search-map ("l" . link-hint-open-link)))
+#+end_src
+
+** Evil 😈 🥰
+#+begin_src emacs-lisp
+(use-package evil
+  :bind (("C-w" . evil-delete-backward-word)
+         :map buffer-map
+         ("l" . evil-switch-to-windows-last-buffer))
+  :init
+  (setopt evil-want-integration t
+          evil-lookup-func #'helpful-at-point
+          evil-shift-round nil
+          evil-cross-lines t
+          evil-undo-system 'undo-redo
+          evil-move-cursor-back nil
+          evil-want-fine-undo t
+          evil-respect-visual-line-mode t
+          evil-want-keybinding nil)
+  (evil-mode 1)
+  :config
+  (set-keymap-parent window-map evil-window-map)
+  (evil-define-key 'motion text-mode-map
+    "j" #'evil-next-visual-line
+    "k" #'evil-previous-visual-line)
+  (evil-define-key 'insert 'global
+    (kbd "C-v") #'evil-paste-before
+    (kbd "M-SPC") leader-map
+    (kbd "M-TAB") #'completion-at-point) 
+  (evil-define-key '(normal emacs) 'global
+    (kbd "SPC") leader-map
+    (kbd "C-t") nil))
+#+end_src
+
+*** COMMENT Embrace
+#+begin_src emacs-lisp
+(use-package embrace)
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package evil-embrace
+  :after evil
+  :init
+  (evil-embrace-enable-evil-surround-integration))
+#+end_src
+
+*** Escape
+#+begin_src emacs-lisp
+(use-package evil-escape
+  :after evil
+  :init
+  (keymap-set evil-insert-state-map "C-g" #'evil-escape)
+  (setopt evil-escape-key-sequence "jk")
+  (evil-escape-mode))
+#+end_src
+
+*** Collection
+#+begin_src emacs-lisp
+(use-package evil-collection
+  :after evil
+  :init
+  (evil-collection-init))
+#+end_src
+
+*** Surround
+#+begin_src emacs-lisp
+(use-package evil-surround
+  :after evil
+  :init
+  (global-evil-surround-mode 1))
+#+end_src
+
+*** Snipe
+#+begin_src emacs-lisp
+(use-package evil-snipe
+  :after evil
+  :init
+  (setopt evil-snipe-spillover-scope 'visible)
+  (evil-snipe-mode 1)
+  (evil-snipe-override-mode 1)
+  (add-hook 'magit-mode-hook 'turn-off-evil-snipe-override-mode))
+#+end_src
+*** Text objects 
+**** Tree-sitter
+#+begin_src emacs-lisp
+(use-package evil-textobj-tree-sitter
+  :after evil)
+#+end_src
+
+* Completion
+** Orderless
+#+begin_src emacs-lisp
+(use-package orderless
+  :init
+  (setopt completion-styles '(orderless basic)
+          completion-category-defaults nil
+          completion-category-overrides '((file (styles partial-completion))))
+  :config
+  (setopt orderless-component-separator #'orderless-escapable-split-on-space
+          orderless-matching-styles '(orderless-initialism
+                                      orderless-literal
+                                      orderless-regexp)))
+#+end_src
+
+** Cape
+#+begin_src emacs-lisp
+(use-package cape
+  :bind (("C-c c p" . completion-at-point) ;; capf
+         ("C-c c t" . complete-tag)        ;; etags
+         ("C-c c d" . cape-dabbrev)        ;; or dabbrev-completion
+         ("C-c c f" . cape-file)
+         ("C-c c k" . cape-keyword)
+         ("C-c c s" . cape-symbol)
+         ("C-c c a" . cape-abbrev)
+         ("C-c c i" . cape-ispell)
+         ("C-c c l" . cape-line)
+         ("C-c c w" . cape-dict)
+         ("C-c c \\" . cape-tex)
+         ("C-c c &" . cape-sgml)
+         ("C-c c r" . cape-rfc1345))
+  :config
+  (setopt cape-dabbrev-min-length 3
+          dabbrev-case-fold-search t
+          cape-dabbrev-check-other-buffers nil)
+  :init
+  (advice-add #'lsp-completion-at-point :around #'cape-wrap-noninterruptible)
+  (advice-add #'lsp-completion-at-point :around #'cape-wrap-nonexclusive)
+  (advice-add #'comint-completion-at-point :around #'cape-wrap-nonexclusive)
+  (advice-add #'eglot-completion-at-point :around #'cape-wrap-nonexclusive)
+  (advice-add #'pcomplete-completions-at-point :around #'cape-wrap-nonexclusive)
+
+  (add-hook! prog-mode
+    (defun +corfu-add-cape-file-h ()
+      (add-hook 'completion-at-point-functions #'cape-file -10 t)))
+
+  (add-hook! (org-mode markdown-mode)
+    (defun +corfu-add-cape-elisp-block-h ()
+      (add-hook 'completion-at-point-functions #'cape-elisp-block 0 t)))
+
+  (add-hook! (prog-mode conf-mode)
+    (defun +corfu-add-cape-emoji-h ()
+      (add-hook 'completion-at-point-functions
+                (cape-capf-inside-faces
+                 (cape-capf-prefix-length #'cape-emoji 1)
+                 ;; Only call inside comments and docstrings.
+                 'tree-sitter-hl-face:doc 'font-lock-doc-face
+                 'font-lock-comment-face 'tree-sitter-hl-face:comment)
+                10 t)))
+
+  (after! dabbrev
+    (setq dabbrev-ignored-buffer-regexps
+          '("^ " "\\(TAGS\\|tags\\|ETAGS\\|etags\\|GTAGS\\|GRTAGS\\|GPATH\\)\\(<[0-9]+>\\)?")
+          dabbrev-upcase-means-case-search t)
+    (add-to-list 'dabbrev-ignored-buffer-modes 'pdf-view-mode))
+
+  (add-hook! (prog-mode conf-mode comint-mode minibuffer-setup eshell-mode)
+    (defun +corfu-add-cape-dabbrev-h ()
+      (add-hook 'completion-at-point-functions #'cape-dabbrev 20 t)))
+
+  (add-hook! text-mode
+    (defun +corfu-add-cape-dabbrev-dict-h ()
+      (add-hook 'completion-at-point-functions (cape-capf-super #'cape-dabbrev #'cape-dict) 30 t))))
+#+end_src
+
+The ~cape-dabbrev~ backend does not handle casing very well; see my issue [[https://github.com/minad/cape/issues/116][here]]. The following advice makes ~cape-dabbrev~ match the case of uppercase words with the case of the completion prefix.
+
+#+begin_src emacs-lisp
+(defadvice! cape--dabbrev-list-ad (input)
+  "Find all Dabbrev expansions for INPUT."
+  :override #'cape--dabbrev-list
+  (cape--silent
+    (let ((dabbrev-check-other-buffers (not (null cape-dabbrev-check-other-buffers)))
+          (dabbrev-check-all-buffers (eq cape-dabbrev-check-other-buffers t)))
+      (dabbrev--reset-global-variables))
+    (cons
+     (apply-partially #'string-prefix-p input)
+     (cl-loop with min-len = (+ cape-dabbrev-min-length (length input))
+               with ic = (cape--case-fold-p dabbrev-case-fold-search)
+               for w in (dabbrev--find-all-expansions input ic)
+               if (>= (length w) min-len) collect
+               (let ((dw (if (let (case-fold-search) (not (string-match-p "[[:lower:]]" w)))
+                             w (downcase w))))
+                (cape--case-replace (and ic dabbrev-case-replace) input dw))))))
+#+end_src
+
+** Consult
+#+begin_src emacs-lisp
+(use-package consult
+  :bind (;; C-c bindings in `mode-specific-map'
+         ("C-c M-x" . consult-mode-command)
+         ("C-c h" . consult-history)
+         ("C-c k" . consult-kmacro)
+         ("C-c m" . consult-man)
+         ("C-c i" . consult-info)
+         ([remap Info-search] . consult-info)
+         ;; C-x bindings in `ctl-x-map'
+         ("C-x M-:" . consult-complex-command)     ;; orig. repeat-complex-command
+         ("C-x b" . consult-buffer)                ;; orig. switch-to-buffer
+         ("C-x 4 b" . consult-buffer-other-window) ;; orig. switch-to-buffer-other-window
+         ("C-x 5 b" . consult-buffer-other-frame)  ;; orig. switch-to-buffer-other-frame
+         ("C-x t b" . consult-buffer-other-tab)    ;; orig. switch-to-buffer-other-tab
+         ("C-x r b" . consult-bookmark)            ;; orig. bookmark-jump
+         ("C-x p b" . consult-project-buffer)      ;; orig. project-switch-to-buffer
+         ;; Custom M-# bindings for fast register access
+         ("M-#" . consult-register-load)
+         ("M-'" . consult-register-store)          ;; orig. abbrev-prefix-mark (unrelated)
+         ("C-M-#" . consult-register)
+         ;; Other custom bindings
+         ("M-y" . consult-yank-pop)                ;; orig. yank-pop
+         ;; M-g bindings in `goto-map'
+         ("M-g e" . consult-compile-error)
+         ("M-g f" . consult-flymake)               ;; Alternative: consult-flycheck
+         ("M-g g" . consult-goto-line)             ;; orig. goto-line
+         ("M-g M-g" . consult-goto-line)           ;; orig. goto-line
+         ("M-g o" . consult-outline)               ;; Alternative: consult-org-heading
+         ("M-g m" . consult-mark)
+         ("M-g k" . consult-global-mark)
+         ;; Isearch integration
+         ("M-s e" . consult-isearch-history)
+         :map leader-map
+         ("," . consult-project-buffer)
+         :map file-map
+         ("r" . consult-recent-file)
+         :map search-map
+         ("d" . consult-find)                  ;; Alternative: consult-fd
+         ("c" . consult-locate)
+         ("g" . consult-grep)
+         ("G" . consult-git-grep)
+         ("r" . consult-ripgrep)
+         ("s" . consult-line)
+         ("S" . consult-line-multi)
+         ("k" . consult-keep-lines)
+         ("u" . consult-focus-lines)
+         ("i" . consult-imenu)
+         ("I" . consult-imenu-multi)
+         :map code-map
+         ("x" . consult-flymake)
+         :map isearch-mode-map
+         ("M-e" . consult-isearch-history)         ;; orig. isearch-edit-string
+         ("M-s e" . consult-isearch-history)       ;; orig. isearch-edit-string
+         ("M-s l" . consult-line)                  ;; needed by consult-line to detect isearch
+         ("M-s L" . consult-line-multi)            ;; needed by consult-line to detect isearch
+         ;; Minibuffer history
+         :map minibuffer-local-map
+         ("M-s" . consult-history)                 ;; orig. next-matching-history-element
+         ("M-r" . consult-history))                ;; orig. previous-matching-history-element
+
+  ;; Enable automatic preview at point in the *Completions* buffer. This is
+  ;; relevant when you use the default completion UI.
+  :hook (completion-list-mode . consult-preview-at-point-mode)
+
+  ;; The :init configuration is always executed (Not lazy)
+  :init
+  ;; Optionally configure the register formatting. This improves the register
+  ;; preview for `consult-register', `consult-register-load',
+  ;; `consult-register-store' and the Emacs built-ins.
+  (setq register-preview-delay 0.5
+        register-preview-function #'consult-register-format)
+
+  ;; Optionally tweak the register preview window.
+  ;; This adds thin lines, sorting and hides the mode line of the window.
+  (advice-add #'register-preview :override #'consult-register-window)
+
+  ;; Use Consult to select xref locations with preview
+  (setq xref-show-xrefs-function #'consult-xref
+        xref-show-definitions-function #'consult-xref)
+
+  ;; Configure other variables and modes in the :config section,
+  ;; after lazily loading the package.
+  :config
+
+  ;; Optionally configure preview. The default value
+  ;; is 'any, such that any key triggers the preview.
+  ;; (setq consult-preview-key 'any)
+  ;; (setq consult-preview-key "M-.")
+  ;; (setq consult-preview-key '("S-<down>" "S-<up>"))
+  ;; For some commands and buffer sources it is useful to configure the
+  ;; :preview-key on a per-command basis using the `consult-customize' macro.
+  (consult-customize
+   consult-theme :preview-key '(:debounce 0.2 any)
+   consult-ripgrep consult-git-grep consult-grep
+   consult-bookmark consult-recent-file consult-xref
+   consult--source-bookmark consult--source-file-register
+   consult--source-recent-file consult--source-project-recent-file
+   ;; :preview-key "M-."
+   :preview-key '(:debounce 0.4 any))
+
+  ;; Optionally configure the narrowing key.
+  ;; Both < and C-+ work reasonably well.
+  (setq consult-narrow-key "<")) ;; "C-+"
+
+  ;; Optionally make narrowing help available in the minibuffer.
+  ;; You may want to use `embark-prefix-help-command' or which-key instead.
+  ;; (define-key consult-narrow-map (vconcat consult-narrow-key "?") #'consult-narrow-help)
+
+  ;; By default `consult-project-function' uses `project-root' from project.el.
+  ;; Optionally configure a different project root function.
+  ;;;; 1. project.el (the default)
+  ;; (setq consult-project-function #'consult--default-project--function)
+  ;;;; 2. vc.el (vc-root-dir)
+  ;; (setq consult-project-function (lambda (_) (vc-root-dir)))
+  ;;;; 3. locate-dominating-file
+  ;; (setq consult-project-function (lambda (_) (locate-dominating-file "." ".git")))
+  ;;;; 4. projectile.el (projectile-project-root)
+  ;; (autoload 'projectile-project-root "projectile")
+  ;; (setq consult-project-function (lambda (_) (projectile-project-root)))
+  ;;;; 5. No project support
+  ;; (setq consult-project-function nil)
+#+end_src
+
+** Marginalia
+#+begin_src emacs-lisp
+(use-package marginalia
+  :bind (:map minibuffer-local-map
+            ("M-A" . marginalia-cycle))
+  :init
+  (marginalia-mode))
+#+end_src
+
+** Nerd-icons
+#+begin_src emacs-lisp
+(use-package nerd-icons-completion
+  :after marginalia
+  :init
+  (nerd-icons-completion-mode)
+  (add-hook 'marginalia-mode-hook #'nerd-icons-completion-marginalia-setup))
+#+end_src
+
+** Templates
+*** Tempel
+#+begin_src emacs-lisp
+(use-package tempel
+  :bind (("M-+" . tempel-complete) ;; Alternative tempel-expand
+         ("M-*" . tempel-insert))
+  :init
+  (defadvice! tempel-next-ad (arg)
+    "Move ARG fields forward and REALLY quit at the end."
+    :after #'tempel-next
+    (unless (tempel--find arg)
+      (tempel-done)))
+  
+  ;; Setup completion at point
+  (defun tempel-setup-capf ()
+    ;; Add the Tempel Capf to `completion-at-point-functions'.
+    ;; `tempel-expand' only triggers on exact matches. Alternatively use
+    ;; `tempel-complete' if you want to see all matches, but then you
+    ;; should also configure `tempel-trigger-prefix', such that Tempel
+    ;; does not trigger too often when you don't expect it. NOTE: We add
+    ;; `tempel-expand' *before* the main programming mode Capf, such
+    ;; that it will be tried first.
+    (add-hook 'completion-at-point-functions #'tempel-expand 20 t))
+
+  (add-hook 'conf-mode-hook 'tempel-setup-capf)
+  (add-hook 'prog-mode-hook 'tempel-setup-capf)
+  (add-hook 'text-mode-hook 'tempel-setup-capf)
+  :config
+  (setmap tempel-map
+          "TAB" #'tempel-next
+          "<backtab>" #'tempel-previous
+          "M-d" (cmd! (tempel-kill) (tempel-next 1))))
+#+end_src
+
+*** AAS
+#+begin_src emacs-lisp
+(use-package aas)
+#+end_src
+
+** UIs
+*** Vertico
+**** Config
+#+begin_src emacs-lisp
+(use-package vertico
+  :init
+  (vertico-mode)
+  :config
+  (setopt vertico-resize nil
+          vertico-count 8))
+
+(add-hook 'minibuffer-setup-hook #'cursor-intangible-mode)
+(setopt minibuffer-prompt-properties '(read-only t cursor-intangible t face minibuffer-prompt))
+(setopt enable-recursive-minibuffers t)
+(setopt read-extended-command-predicate #'command-completion-default-include-p)
+#+end_src
+
+**** Extensions
+***** Directory
+#+begin_src emacs-lisp
+(use-package vertico-directory
+  :after vertico
+  :ensure nil
+  ;; More convenient directory navigation commands
+  :bind (:map vertico-map
+              ("RET" . vertico-directory-enter)
+              ("DEL" . vertico-directory-delete-char)
+              ("M-DEL" . vertico-directory-delete-word))
+  ;; Tidy shadowed file names
+  :hook (rfn-eshadow-update-overlay . vertico-directory-tidy))
+#+end_src
+
+***** Repeat
+#+begin_src emacs-lisp
+(use-package vertico-repeat
+  :after vertico
+  :ensure nil
+  :bind (("M-R" . vertico-repeat)
+         :map vertico-map
+              ("M-P" . vertico-repeat-previous)
+              ("M-N" . vertico-repeat-next)
+              ("S-<prior>" . vertico-repeat-previous)
+              ("S-<next>" . vertico-repeat-next))
+  :hook (minibuffer-setup . vertico-repeat-save))
+#+end_src
+**** Posframe
+#+begin_src emacs-lisp
+  (use-package vertico-posframe
+    :init
+    (vertico-posframe-mode 1)
+    :config
+    (setopt vertico-posframe-border-width 1)
+    ;; setopt is complaining
+    (setq vertico-posframe-parameters '((left-fringe . 8) (right-fringe . 8))))
+#+end_src
+
+*** Corfu
+#+begin_src emacs-lisp
+(use-package corfu
+  :init
+  (defun corfu-enable-in-minibuffer ()
+    "Enable Corfu in the minibuffer."
+    (when (local-variable-p 'completion-at-point-functions)
+      ;; (setq-local corfu-auto nil) ;; Enable/disable auto completion
+      (setq-local corfu-echo-delay nil ;; Disable automatic echo and popup
+                  corfu-popupinfo-delay nil)
+      (corfu-mode 1)))
+  (add-hook 'minibuffer-setup-hook #'corfu-enable-in-minibuffer)
+  (global-corfu-mode)
+  :bind
+  (:map corfu-map
+        ("\\" . corfu-quit)
+        ("TAB" . corfu-next)
+        ([tab] . corfu-next)
+        ("S-TAB" . corfu-previous)
+        ([backtab] . corfu-previous)
+        ("M-s" . corfu-insert-separator))
+  :config
+  (setopt corfu-cycle t
+          corfu-auto nil
+          corfu-auto-prefix 3
+          corfu-count 16
+          corfu-auto-delay 0.18
+          corfu-preselect 'prompt
+          corfu-max-width 120
+          corfu-on-exact-match 'insert
+          corfu-preview-current 'insert
+          tab-always-indent t)
+  (add-hook 'evil-insert-state-exit-hook #'corfu-quit)
+  (add-to-list 'completion-category-overrides `(lsp-capf (styles ,@completion-styles))))
+#+end_src
+
+**** Extensions
+***** Terminal
+#+begin_src emacs-lisp
+(use-package corfu-terminal
+  :when (not (display-graphic-p))
+  :hook ((corfu-mode . corfu-terminal-mode)))
+#+end_src
+
+***** History
+#+begin_src emacs-lisp
+(use-package corfu-history
+  :ensure nil
+  :after (savehist corfu)
+  :hook ((corfu-mode . corfu-history-mode))
+  :config
+  (add-to-list 'savehist-additional-variables 'corfu-history))
+#+end_src
+
+***** Popupinfo
+#+begin_src emacs-lisp
+(use-package corfu-popupinfo
+  :ensure nil
+  :after corfu
+  :hook ((corfu-mode . corfu-popupinfo-mode))
+  :config
+  (setopt corfu-popupinfo-delay '(0.5 . 1.0)))
+#+end_src
+
+***** Kind-icon
+#+begin_src emacs-lisp
+(use-package kind-icon
+  :after corfu
+  :init
+  (add-to-list 'corfu-margin-formatters #'kind-icon-margin-formatter)
+  :config
+  (setopt kind-icon-default-face 'corfu-default
+          kind-icon-blend-background t
+          kind-icon-default-style '(:padding 0
+                                    :stroke 0
+                                    :margin 0
+                                    :radius 0
+                                    :height 0.8
+                                    :scale 1.0))
+  (add-hook 'after-enable-theme-hook #'kind-icon-reset-cache))
+#+end_src
+
+*** Embark
+#+begin_src emacs-lisp
+(use-package embark
+  :bind (("C-;" . embark-act)
+         ("C-," . embark-dwim)
+         ([remap describe-bindings] . embark-bindings))
+  :init
+  (setq which-key-use-C-h-commands nil
+        prefix-help-command #'embark-prefix-help-command)
+  :config
+
+  (defun embark-which-key-indicator ()
+   "An embark indicator that displays keymaps using which-key.
+The which-key help message will show the type and value of the
+current target followed by an ellipsis if there are further
+targets."
+   (lambda (&optional keymap targets prefix)
+     (if (null keymap)
+         (which-key--hide-popup-ignore-command)
+       (which-key--show-keymap
+        (if (eq (plist-get (car targets) :type) 'embark-become)
+            "Become"
+          (format "Act on %s '%s'%s"
+                  (plist-get (car targets) :type)
+                  (embark--truncate-target (plist-get (car targets) :target))
+                  (if (cdr targets) "…" "")))
+        (if prefix
+            (pcase (lookup-key keymap prefix 'accept-default)
+              ((and (pred keymapp) km) km)
+              (_ (key-binding prefix 'accept-default)))
+          keymap)
+        nil nil t (lambda (binding)
+                    (not (string-suffix-p "-argument" (cdr binding))))))))
+
+  (setopt embark-indicators '(embark-which-key-indicator
+                              embark-highlight-indicator
+                              embark-isearch-highlight-indicator))
+  
+  (add-to-list 'display-buffer-alist
+             '("\\`\\*Embark Collect \\(Live\\|Completions\\)\\*"
+               nil
+               (window-parameters (mode-line-format . none)))))
+
+(use-package embark-consult
+  :hook (embark-collect-mode . consult-preview-at-point-mode))
+#+end_src
+
+**** Which-key indicator
+#+begin_src emacs-lisp
+(with-eval-after-load 'embark
+  (when (require 'which-key nil t)
+    (defun embark-which-key-indicator ()
+     "An embark indicator that displays keymaps using which-key.
+The which-key help message will show the type and value of the
+current target followed by an ellipsis if there are further
+targets."
+     (lambda (&optional keymap targets prefix)
+       (if (null keymap)
+           (which-key--hide-popup-ignore-command)
+         (which-key--show-keymap
+          (if (eq (plist-get (car targets) :type) 'embark-become)
+              "Become"
+            (format "Act on %s '%s'%s"
+                    (plist-get (car targets) :type)
+                    (embark--truncate-target (plist-get (car targets) :target))
+                    (if (cdr targets) "…" "")))
+          (if prefix
+              (pcase (lookup-key keymap prefix 'accept-default)
+                ((and (pred keymapp) km) km)
+                (_ (key-binding prefix 'accept-default)))
+            keymap)
+          nil nil t (lambda (binding)
+                      (not (string-suffix-p "-argument" (cdr binding))))))))
+
+   (setq embark-indicators
+     '(embark-which-key-indicator
+       embark-highlight-indicator
+       embark-isearch-highlight-indicator))
+
+   (defun embark-hide-which-key-indicator (fn &rest args)
+     "Hide the which-key indicator immediately when using the completing-read prompter."
+     (which-key--hide-popup-ignore-command)
+     (let ((embark-indicators
+            (remq #'embark-which-key-indicator embark-indicators)))
+         (apply fn args)))
+
+   (advice-add #'embark-completing-read-prompter
+               :around #'embark-hide-which-key-indicator)))
+#+end_src
+
+*** Which-key
+#+begin_src emacs-lisp
+(use-package which-key
+  :init
+  (which-key-mode))
+#+end_src
+
+* Functionality
+** Custom
+#+begin_src emacs-lisp
+(setopt custom-file (expand-file-name "custom.el" user-emacs-directory))
+(add-hook 'elpaca-after-init-hook (lambda () (load custom-file)))
+#+end_src
+
+Add a hook after theme changes.
+
+#+begin_src emacs-lisp
+(use-package custom
+  :ensure nil
+  :init
+  (defvar after-enable-theme-hook nil)
+  (defun run-after-enable-theme-hook (&rest _args)
+    (run-hooks 'after-enable-theme-hook))
+  (advice-add 'enable-theme :after #'run-after-enable-theme-hook))
+#+end_src
+
+** Errors, linting
+*** Flymake
+**** Popon
+#+begin_src emacs-lisp
+(use-package flymake-popon
+  :after flymake
+  :custom-face (flymake-popon ((t (:inherit corfu-popupinfo))))
+  :init
+  (global-flymake-popon-mode)
+  :config
+  (setopt flymake-popon-delay 0.8
+          flymake-popon-posframe-border-width 0
+          flymake-popon-method 'posframe
+          flymake-popon-diagnostic-formatter #'flymake-diagnostic-text))
+#+end_src
+*** Eldoc-box
+#+begin_src emacs-lisp
+(use-package eldoc-box
+  :custom-face 
+  (eldoc-box-body ((t (:height 1.0 :inherit (variable-pitch)))))
+  (eldoc-box-border ((t (:background unspecified :inherit corfu-border))))
+  (eldoc-box-markdown-separator
+   ((t :height 0.5
+       :underline (:color foreground-color :style wave :position nil)
+       :strike-through unspecified
+       :inherit shadow)))
+  :config
+  (setopt eldoc-box-max-pixel-height 400)
+  (setcdr (assoc 'internal-border-width eldoc-box-frame-parameters) 1)
+  (setcdr (assoc 'left-fringe eldoc-box-frame-parameters)  10)
+  (setcdr (assoc 'right-fringe eldoc-box-frame-parameters) 10))
+#+end_src
+
+** Helpful
+#+begin_src emacs-lisp
+(use-package helpful
+  :bind (("C-h f" . #'helpful-callable)
+         ("C-h F" . #'helpful-function)
+         ("C-h v" . #'helpful-variable)
+         ("C-h k" . #'helpful-key)
+         ("C-h x" . #'helpful-command)
+         ("C-h '" . #'helpful-at-point)
+         ("C-h m" . #'helpful-macro)))
+#+end_src
+
+** Idiosyncrasy
+#+begin_src emacs-lisp
+(setopt indent-tabs-mode nil
+        inhibit-startup-screen t
+        scroll-conservatively 20
+        backup-inhibited t
+        ring-bell-function #'ignore
+        revert-without-query '(".")
+        use-short-answers t)
+#+end_src
+
+** Good scrolling
+#+begin_src emacs-lisp
+(pixel-scroll-precision-mode 1)
+(setopt pixel-scroll-precision-interpolation-factor 1.5)
+#+end_src
+
+** Screen cast
+#+begin_src emacs-lisp
+(use-package gif-screencast
+  :config
+  (setopt gif-screencast-program "grim"
+          gif-screencast-args '()))
+#+end_src
+
+** Ligatures
+#+begin_src emacs-lisp
+(use-package ligature
+  :init
+  (global-ligature-mode t)
+  :config
+  (ligature-set-ligatures
+   'haskell-mode '("</" "</>" "/>" "~-" "-~" "~@" "<~" "<~>" "<~~" "~>" "~~"
+                   "~~>" ">=" "<=" "<!--" "##" "###" "####" "|-" "-|" "|->"
+                   "<-|" ">-|" "|-<" "|=" "|=>" "<-" "<--" "-->" "->" "-<"
+                   ">->" ">>-" "<<-" "<->" "->>" "-<<" "<-<" "==>" "=>" "=/="
+                   "!==" "!=" "<==" ">>=" "=>>" ">=>" "<=>" "<=<" "<<=" "=<<"
+                   ".-" ".=" "=:=" "=!=" "==" "===" "::" ":=" 
+                   "<|" "<|>" "|>" "<>" "<$" "<$>" "$>" "<+" "<+>" "+>"
+                   "?=" "/=" "/==" "/\\" "\\/" "__" "&&" "++" "+++")))
+#+end_src
+
+** COMMENT LSP-mode
+#+begin_src emacs-lisp
+(use-package lsp-mode
+  :commands (lsp)
+  :config
+  (keymap-set code-map "l" lsp-command-map)
+  (setopt lsp-completion-provider :none
+          lsp-headerline-breadcrumb-enable nil
+          lsp-lens-enable nil))
+#+end_src
+
+*** Consult-LSP
+#+begin_src emacs-lisp 
+(use-package consult-lsp
+  :bind (:map lsp-command-map
+              ("x" . consult-lsp-diagnostics)
+              ("I" . consult-lsp-symbols)
+              ("i" . consult-lsp-file-symbols)))
+#+end_src
+
+** Eglot (updated)
+#+begin_src emacs-lisp
+(use-package eldoc)
+(use-package jsonrpc)
+
+(use-package eglot
+  :config
+  (setcdr (assoc '(tex-mode context-mode texinfo-mode bibtex-mode) eglot-server-programs)
+          '("texlab"))
+  (modal-setmap eglot-mode-map code-map
+                "a" #'eglot-code-actions
+                "f" #'consult-eglot-symbols))
+#+end_src
+
+*** Consult integration
+#+begin_src emacs-lisp
+(use-package consult-eglot)
+
+(use-package consult-eglot-embark
+  :after eglot
+  :init
+  (consult-eglot-embark-mode 1))
+#+end_src
+
+** Magit
+#+begin_src emacs-lisp
+(use-package magit
+  :ensure (:source "NonGNU ELPA"))
+(use-package transient
+  :ensure (:source "NonGNU ELPA"))
+#+end_src
+
+Let's add some keys to it.
+#+begin_src emacs-lisp
+(use-package magit
+  :ensure nil
+  :init
+  (defvar-keymap git-map :doc "Actions related to Git.")
+  (keymap-set leader-map "g" (cons "Git" git-map))
+  (setmap git-map
+          "g" #'magit
+          "s" #'magit-stage
+          "u" #'magit-unstage
+          "c c" #'magit-commit-create
+          "c a" #'magit-commit-amend
+          "c f" #'magit-commit-fixup))
+#+end_src
+
+** Persistence (savehist)
+#+begin_src emacs-lisp
+(use-package savehist
+  :ensure nil
+  :hook (after-init . savehist-mode))
+#+end_src
+
+** Projects
+#+begin_src emacs-lisp
+(use-package project
+  :config
+  (set-keymap-parent project-map project-prefix-map)
+  (keymap-set leader-map "SPC" #'project-find-file)
+  (setopt project-switch-commands #'project-find-file
+          project-prompter #'project-prompt-project-dir
+          project-vc-extra-root-markers '("latexmkrc")))
+#+end_src
+
+*** Tabspaces
+#+begin_src emacs-lisp
+(use-package tab-bar
+  :ensure nil
+  :init
+  (cl-loop for i from 1 to 9 do
+           (keymap-global-set (format "M-%s" i) `(lambda () (interactive) (tab-select ,i))))
+  :config
+  (setopt tab-bar-close-button nil
+          tab-bar-tab-hints t
+          tab-bar-new-tab-choice "*scratch*"))
+
+(use-package tabspaces
+  :init
+  (setopt tabspaces-session t
+          tabspaces-session-auto-restore t)
+  (defun tabspaces-open-or-create-project ()
+    (interactive)
+    (tabspaces-open-or-create-project-and-workspace (funcall project-prompter) current-prefix-arg))
+  (tabspaces-mode 1)
+  :bind (:map project-prefix-map ("p" . tabspaces-open-or-create-project))
+  :bind ("M-z" . tab-bar-mode)
+  :config
+  (setopt tabspaces-use-filtered-buffers-as-default t
+          tabspaces-default-tab "Default"
+          tabspaces-remove-to-default nil
+          tabspaces-include-buffers '()
+          tabspaces-todo-file-name "project-todo.org"))
+#+end_src
+
+**** Consult source
+#+begin_src emacs-lisp
+(after! (tabspaces consult)
+  (defun tabspaces-buffer-names ()
+    (let ((exclude-re (consult--regexp-filter consult-buffer-filter))
+          (buffers (consult--buffer-sort-visibility
+                    (seq-copy (frame-parameter nil 'buffer-list)))))
+      (consult--keep! buffers
+        (unless (or (string-match-p exclude-re (buffer-name it))
+                    (eq (current-buffer) it))
+          (consult--buffer-pair it)))
+      buffers))
+
+  (setq consult--source-tab-local
+    `(:name "Tab Buffer"
+      :narrow (?l . "Tab")
+      :category buffer
+      :face consult-buffer
+      :history buffer-name-history
+      :state ,#'consult--buffer-state
+      :action ,#'consult--buffer-action
+      :items ,#'tabspaces-buffer-names
+      ,(lambda () (consult--buffer-query :sort 'visibility
+                                         :as #'consult--buffer-pair))))
+
+  (add-to-list 'consult-buffer-sources 'consult--source-tab-local)
+  (add-to-list 'consult-project-buffer-sources 'consult--source-tab-local))
+#+end_src
+
+** Recentf
+#+begin_src emacs-lisp
+(use-package recentf
+  :ensure nil
+  :hook (after-init . recentf-mode))
+#+end_src
+
+** Spelling (jinx)
+#+begin_src emacs-lisp
+(use-package jinx
+  :config
+  (setq jinx-languages "pt_BR en_US")
+  (cl-pushnew 'font-lock-constant-face (cdr (assq 'tex-mode jinx-exclude-faces)))
+  (dolist (hook '(text-mode-hook conf-mode-hook))
+    (add-hook hook #'jinx-mode))
+  (define-key evil-visual-state-map "z=" 'jinx-correct)
+  (define-key evil-normal-state-map "z=" 'jinx-correct))
+#+end_src
+
+Let's also add a dir-local saving option. 
+
+#+begin_src emacs-lisp
+(after! jinx
+  (defun jinx--save-dir (save key word)
+    "Save WORD in dir-local variable.
+If SAVE is non-nil save, otherwise format candidate given action KEY."
+    (if save
+        (progn
+          (add-to-list 'jinx--session-words word)
+          (setq jinx-local-words
+                (string-join
+                 (sort (delete-dups
+                        (cons word (split-string jinx-local-words)))
+                       #'string<)
+                 " "))
+          (modify-dir-local-variable major-mode 'jinx-local-words jinx-local-words 'add-or-replace)
+          (save-buffer)
+          (kill-buffer))
+      (list key word "Directory")))
+  (setopt jinx--save-keys (map-insert jinx--save-keys ?, #'jinx--save-dir)))
+#+end_src
+
+** Text wrapping
+#+begin_src emacs-lisp
+(use-package adaptive-wrap
+  :hook ((LaTeX-mode prog-mode) . adaptive-wrap-prefix-mode))
+#+end_src
+
+** Tree-sitter
+#+begin_src emacs-lisp
+(use-package tree-sitter)
+(use-package tree-sitter-langs)
+#+end_src
+
+* Emacs for the mathematician
+** Abbrev
+*** Language & math predicate
+#+begin_src emacs-lisp
+(defcustom abbrev/math-text-lang 'pt
+  "docs"
+  :safe #'symbolp)
+
+(defun abbrev/set-math-text-lang ()
+  (interactive)
+  (when-let ((key (car (org-collect-keywords '("language")))))
+    (setq abbrev/math-text-lang (make-symbol (cadr key)))))
+
+(defun abbrev/math-text-pt-p () (and (mamimo-notmathp) (string= abbrev/math-text-lang 'pt)))
+(defun abbrev/math-text-en-p () (and (mamimo-notmathp) (string= abbrev/math-text-lang 'en)))
+#+end_src
+
+*** Textual abbrevs
+#+begin_src emacs-lisp
+(setq abbrev/math-text-abbrevs-pt
+  '(("pa" "podemos assumir")
+    ("pd" "por definição")
+    ("ie" "i.e.")
+    ("tq" "tal que")
+    ("ssg" "suficientemente grande")
+    ("spg" "sem perda de generalidade")
+    ("qtp" "q.t.p.")
+    ("sss" "se, e somente se,")
+    ("mdd" "medida")
+    ("cjto" "conjunto")
+    ("li" "linearmente independentes")))
+
+(setq abbrev/math-text-abbrevs-en
+  '(("wlog" "without loss of generality")
+    ("iff" "if and only if")
+    ("ie" "i.e.")
+    ("st" "such that")
+    ("ae" "a.e.")
+    ("pos" "positive")
+    ("neg" "negative")
+    ("wrt" "with respect to")
+    ("meas" "measure")
+    ("bd" "by definition")
+    ("li" "linearly independent")))
+#+end_src
+
+*** Variable abbrevs
+#+begin_src emacs-lisp
+(setq abbrev/var-abbrevs-pt '(b c d f g h i j k l m n p q r s t u v w x y z))
+(setq abbrev/var-abbrevs-en '(b c d e f g h j k l m n o p q r s t u v w x y z))
+
+(defun abbrev/compile-var-abbrevs (abbrevs)
+  (mapcar (lambda (s) (list (symbol-name s) (format "\\(%s\\)" s) nil :system t))
+          abbrevs))
+#+end_src
+
+*** Tables and mode-local tables
+#+begin_src emacs-lisp
+(setq abbrev/tables
+  `((abbrev/math-text-pt-table
+     ,(append
+       abbrev/math-text-abbrevs-pt
+       (abbrev/compile-var-abbrevs abbrev/var-abbrevs-pt))
+     abbrev/math-text-pt-p)
+    (abbrev/math-text-en-table
+     ,(append
+       abbrev/math-text-abbrevs-en
+       (abbrev/compile-var-abbrevs abbrev/var-abbrevs-en))
+     abbrev/math-text-en-p)))
+
+(defun abbrev/setup ()
+  (require 'abbrev)
+  (abbrev/set-math-text-lang)
+  (setq-local local-abbrev-table nil)
+  (pcase-dolist (`(,name ,defs ,cond) abbrev/tables)
+   (define-abbrev-table name defs :enable-function cond)
+   (push (symbol-value name) local-abbrev-table))
+  (abbrev-mode +1))
+
+(add-hook 'mamimo-mode-hook #'abbrev/setup)
+#+end_src
+** Pretty concealed symbols
+Custom predicate for composing only inside LaTeX delimiters.
+#+begin_src emacs-lisp
+(defun math-prettify--symbols-compose-p (start end _match)
+  (and
+   (or
+    ;; Allow for math delimiters
+    (eq ?\) (char-before end))
+    (eq ?\( (char-before end))
+    ;; Only compose inside math
+    t)
+   (or
+    ;; If the matched symbol doesn't end in a word character, then we
+    ;; simply allow composition.  The symbol is probably something like
+    ;; \|, \(, etc.
+    (not (eq ?w (char-syntax (char-before end))))
+    ;; Else we look at what follows the match in order to decide.
+    (let* ((after-char (char-after end))
+           (after-syntax (char-syntax after-char)))
+      (not (or
+            ;; Don't compose \alpha@foo.
+            (eq after-char ?@)
+            ;; The \alpha in \alpha2 or \alpha-\beta may be composed but
+            ;; of course \alphax may not.
+            (and (eq after-syntax ?w)
+                 (not (memq after-char
+                            '(?0 ?1 ?2 ?3 ?4 ?5 ?6 ?7 ?8 ?9 ?+ ?- ?' ?\" ?$ ?_))))
+            ;; Don't compose inside verbatim blocks.
+            (eq 2 (nth 7 (syntax-ppss)))))))))
+#+end_src
+
+#+begin_src emacs-lisp
+(defvar math-prettify--symbols-alist)
+
+(after! tex-mode
+  (setq math-prettify--symbols-alist
+          (append
+           '(("\\left" . ?ʟ)
+             ("\\right" . ?ʀ)
+             ("\\middle" . ?ᴍ)
+             ("\\tilde" . ?˜)
+             ("\\implies" . ?⇒)
+             ("\\colon" . ?：)
+             ("\\impliedby" . ?⇐)
+             ("\\sqrt" . ?√)
+             ("\\dots" . ?…)
+             ("\\not\\subset" . ?⊄))
+           (bound-and-true-p tex--prettify-symbols-alist))))
+
+(defun math-prettify-activate ()
+  (interactive)
+  (setq-local prettify-symbols-alist math-prettify--symbols-alist)
+  (setq-local prettify-symbols-unprettify-at-point 'right-edge)
+  (setq-local prettify-symbols-compose-predicate
+              #'math-prettify--symbols-compose-p)
+  (prettify-symbols-mode +1))
+
+(add-hook! (LaTeX-mode latex-mode org-mode) #'math-prettify-activate)
+#+end_src
+
+** Citar
+#+begin_src emacs-lisp
+(use-package citar
+  :config
+  (setopt
+    citar-file-open-functions '(("pdf" . citar-file-open-external))
+    citar-bibliography '("/home/lucas/Zotero/bibs/all.bib")
+    org-cite-csl-styles-dir "/home/lucas/Zotero/styles"
+    citar-symbol-separator " "))
+#+end_src
+
+** AAS setup
+#+begin_src emacs-lisp
+(defun tempel--tex-arg (&optional prompt)
+  (let ((st ()))
+    (tempel--placeholder st prompt "argstr")))
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package aas
+  :ensure nil
+  :init
+  (add-hook! (latex-mode LaTeX-mode)
+    (defun +activate-aas-h ()
+      (aas-mode +1)
+      (aas-activate-keymap 'aas-math)))
+  
+  :config
+  (defun tex-not-command-p ()
+    (not (looking-back "\\\\[[:alpha:]]*?" (line-beginning-position))))
+  (defun latex-brace-tempel-elt (elt)
+    (when (eq (car-safe elt) 'sb)
+      (let ((var (or (nth 3 elt) 'sb-str)))
+        `(l (when (length> ,var 0) ,(nth 1 elt))
+            (when (length> ,var 1) "{")
+            (p ,(nth 2 elt) ,var)
+            (when (length> ,var 1) "}")))))
+  (defun i-binop (str)
+    (cmd! (insert (if (eq (char-before) 32) "" " ") str " ")))
+
+  (after! tempel
+    (add-to-list 'tempel-user-elements #'latex-brace-tempel-elt))
+
+  
+  (aas-set-snippets 'aas-math
+    :cond (lambda () (eq (char-before) 32))
+    " " '(tempel "\\(" q "\\)")
+
+    ";cas" '(tempel "\\begin\{cases\}" p "\\end\{cases\}")
+
+    :cond #'texmathp
+    ".."   "\\dots"
+
+    "+" (i-binop "+")
+    "-" (i-binop "-")
+
+    :cond (lambda () (and (tex-not-command-p) (texmathp)))
+
+    "ne" (i-binop "\\ne")
+
+    "norm" (cmd! (TeX-insert-macro "norm"))
+    "abs" (cmd! (TeX-insert-macro "abs"))
+    "set" (cmd! (TeX-insert-macro "set"))
+
+    "fun" '(tempel (p "f") " \\colon " (p "A") " \\to " (p "B"))
+
+    ;; Modifiers
+    "bb" (cmd! (TeX-font nil 19))
+    "cal" (cmd! (TeX-font nil 1))
+    "tt" (cmd! (TeX-font nil 20))
+
+    "sr" (cmd! (TeX-insert-macro "sqrt"))
+    "fr" '(tempel "\\frac{" p "}{" p "}")
+
+    "to" (i-binop "\\to")
+
+    "xto" (cmd! (TeX-insert-macro "xrightarrow"))
+
+    "oo"   "\\infty"
+    "c.."  "\\cdots"
+
+    "sq"    "^2"
+    "cb"    "^3"
+    "inv"   "^{-1}"
+
+    "lim" '(tempel "\\lim" (sb "_" "n \\to \\infty") " ")
+
+    "bcap" '(tempel "\\bigcap" (sb "_" "i = 1") (sb "^" "\\infty" v2) " ")
+    "bcup" '(tempel "\\bigcup" (sb "_" "i = 1") (sb "^" "\\infty" v2) " ")
+    "prod" '(tempel "\\prod"   (sb "_" "i = 1") (sb "^" "\\infty" v2) " ")
+    "sum"  '(tempel "\\sum"    (sb "_" "i = 1") (sb "^" "\\infty" v2) " ")
+    "bsum" '(tempel "\\frac{1}{" (p "n" var) "}\\sum_{" var " = 0}^{" var " - 1} ")
+    "int"  '(tempel "\\int" (sb "_" "-\\infty") (sb "^" "\\infty" v2) " " p (when (length> meas 0) "\\;d") (p "\\mu" meas))
+
+    "arccos" "\\arccos"
+    "arccot" "\\arccot"
+    "arccot" "\\arccot"
+    "arccsc" "\\arccsc"
+    "arcsec" "\\arcsec"
+    "arcsin" "\\arcsin"
+    "arctan" "\\arctan"
+    "cos"    "\\cos"
+    "cot"    "\\cot"
+    "csc"    "\\csc"
+    "exp"    "\\exp"
+    "ln"     "\\ln"
+    "log"    "\\log"
+    "perp"   "\\perp"
+    "sin"    "\\sin"
+    "star"   "\\star"
+    "gcd"    "\\gcd"
+    "min"    "\\min"
+    "max"    "\\max"
+    "inf"    "\\inf"
+    "sup"    "\\sup"))
+#+end_src
+
+* Looks and UI
+** Fonts and faces
+#+begin_src emacs-lisp
+(custom-set-faces
+ '(default ((t (:weight medium :height 125 :family "Victor Mono"))))
+ '(fixed-pitch ((t (:family "Victor Mono"))))
+ '(variable-pitch ((t (:family "IBM Plex Sans"))))
+ '(ef-themes-ui-variable-pitch ((t (:inherit variable-pitch)))))
+#+end_src
+
+*** Unicode
+#+begin_src emacs-lisp
+(setopt use-default-font-for-symbols t)
+
+(defun adjust-symbolic-fonts ()
+  (dolist (script '(symbol mathematical unicode))
+    (set-fontset-font t script (font-spec :family "Julia Mono") nil 'prepend))
+  (set-fontset-font t 'emoji "Twemoji" nil 'prepend))
+
+(adjust-symbolic-fonts)
+(add-hook 'after-setting-font-hook #'adjust-symbolic-fonts)
+#+end_src
+
+** Layout
+*** Built-in
+#+begin_src emacs-lisp
+(setopt tool-bar-mode nil
+        scroll-bar-mode nil
+        menu-bar-mode nil)
+#+end_src
+
+*** Olivetti
+#+begin_src emacs-lisp
+(use-package olivetti
+  :hook (text-mode . olivetti-mode)
+  :commands olivetti-mode
+  :bind (:map toggle-map ("e" . olivetti-mode))
+  :config
+  (setopt olivetti-body-width 100))
+#+end_src
+
+** Theme
+#+begin_src emacs-lisp
+(use-package ef-themes
+  :bind (:map toggle-map ("t" . ef-themes-toggle))
+  :init (load-theme 'ef-arbutus :no-confirm)
+  :config
+  (setopt ef-themes-to-toggle '(ef-arbutus ef-dream)
+          ef-themes-mixed-fonts t
+          ef-themes-variable-pitch-ui t))
+#+end_src
+
+*** Modus customization
+This is a beatiful, extremely readable and highly customizable theme. Protesilaos at its finest. I like it a lot for long writing sessions without worries about getting sick or distracted by a colorful theme.
+
+#+begin_src emacs-lisp
+(use-package modus-themes
+  :ensure nil
+  :config
+  (setopt modus-themes-fringes nil
+          modus-themes-org-blocks 'tinted-background
+          modus-themes-tabs-accented t
+          modus-themes-variable-pitch-ui t
+          modus-themes-mode-line '(accented borderless)))
+#+end_src
+
+** Modeline
+#+begin_src emacs-lisp
+(use-package doom-modeline
+  :init
+  (doom-modeline-mode 1)
+  :custom-face
+  (mode-line ((t (:family "Julia Mono" :height 108))))
+  (mode-line-inactive ((t (:family "Julia Mono" :height 108))))
+  (doom-modeline-buffer-modified ((t (:underline t))))
+  :config
+  (setopt doom-modeline-irc nil
+          doom-modeline-height 22
+          doom-modeline-buffer-encoding nil
+          doom-modeline-workspace-name nil
+          doom-modeline-bar-width 1
+          doom-modeline-icon nil)
+
+  (doom-modeline-def-segment buffer-name
+   "Display the current buffer's name, without any other information."
+   (concat
+     (doom-modeline-spc)
+     (doom-modeline--buffer-name)))
+
+  (doom-modeline-def-segment pdf-icon
+    "PDF icon from all-the-icons."
+    (concat
+      (doom-modeline-spc)
+      (doom-modeline-icon 'octicon "file-pdf" nil nil
+                          :face (if (doom-modeline--active)
+                                    'all-the-icons-red
+                                  'mode-line-inactive)
+                          :v-adjust 0.02)))
+
+  (defun doom-modeline-update-pdf-pages ()
+    "Update PDF pages."
+    (setq doom-modeline--pdf-pages
+          (let ((current-page-str (number-to-string (eval `(pdf-view-current-page))))
+                (total-page-str (number-to-string (pdf-cache-number-of-pages))))
+            (concat
+              (propertize
+                (concat (make-string (- (length total-page-str) (length current-page-str)) 32)
+                      " P" current-page-str)
+                'face 'mode-line)
+              (propertize (concat "/" total-page-str) 'face 'doom-modeline-buffer-minor-mode)))))
+
+  (doom-modeline-def-segment pdf-pages
+    "Display PDF pages."
+    (if (doom-modeline--active) doom-modeline--pdf-pages
+      (propertize doom-modeline--pdf-pages 'face 'mode-line-inactive)))
+
+  (doom-modeline-def-modeline 'pdf
+    '(bar window-number pdf-pages pdf-icon buffer-name)
+    '(misc-info matches major-mode process vcs)))
+
+#+end_src
+
+** Treemacs
+#+begin_src emacs-lisp
+(use-package treemacs
+  :bind (:map toggle-map
+              ("p" . treemacs)))
+
+(use-package treemacs-evil
+  :after (treemacs evil)
+  :demand t)
+
+(use-package treemacs-nerd-icons
+  :after (treemacs)
+  :demand t
+  :config
+  (treemacs-load-theme "nerd-icons"))
+
+(use-package treemacs-tab-bar ;;treemacs-tab-bar if you use tab-bar-mode
+  :after (treemacs)
+  :demand t
+  :config
+  (treemacs-set-scope-type 'Tabs))
+#+end_src
+
+* Terminal screen
+** Cursor, mouse
+#+begin_src emacs-lisp
+(setopt xterm-set-window-title t
+        visible-cursor nil)
+(add-hook 'tty-setup-hook #'xterm-mouse-mode)
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package evil-terminal-cursor-changer
+  :hook (tty-setup . evil-terminal-cursor-changer-activate))
+#+end_src
+
+** Kitty Keyboard Protocol
+#+begin_src emacs-lisp
+(use-package kkp
+  :hook (tty-setup . global-kkp-mode))
+#+end_src
+
+* Languages
+** Org
+#+begin_src emacs-lisp
+(use-package org
+  :mode ("\\.org\\'" . org-mode)
+  :commands (org-mode)
+  :config
+  (modal-setmap org-mode-map mode-map
+                    "." #'consult-org-heading
+                    "i" #'consult-org-heading)
+  (evil-define-key 'normal org-mode-map "\\" #'org-edit-special)
+  (evil-define-minor-mode-key 'normal 'org-src-mode "\\" #'org-edit-src-exit)
+  (setopt org-indent-indentation-per-level 1
+          org-src-window-setup 'split-window-below
+          org-directory "~/dados/org"
+          org-fold-core-style 'text-properties
+          org-startup-indented t
+          org-support-shift-select t
+          org-insert-heading-respect-content t
+          org-hide-leading-stars t
+          org-highlight-latex-and-related '(latex script)
+          org-src-preserve-indentation t))
+#+end_src
+
+*** Skip 'SUBTREE'
+#+begin_src emacs-lisp
+(defadvice! org-cycle-internal-local-ad (f)
+  :around #'org-cycle-internal-local
+  (if (eq org-cycle-subtree-status 'children)
+      (let ((last-command nil))
+        (funcall f))
+    (funcall f)))
+#+end_src
+
+*** Appearance
+#+begin_src emacs-lisp
+(use-package org-superstar
+  :after (org)
+  :hook (org-mode . org-superstar-mode)
+  :config
+  (setq org-superstar-headline-bullets-list '(?◆ ?❉ ?🞱 ?🞽 ?✺)))
+#+end_src
+
+** Elisp
+*** Parinfer
+#+begin_src emacs-lisp
+(use-package parinfer-rust-mode
+  :hook emacs-lisp-mode)
+#+end_src
+
+*** Highlighting
+#+begin_src emacs-lisp
+(use-package highlight-defined
+  :hook (emacs-lisp-mode . highlight-defined-mode))
+#+end_src
+
+** LaTeX
+#+begin_src emacs-lisp
+(after! font-latex
+  (setopt font-latex-script-display '((raise -0.3) . (raise 0.4))
+          font-latex-fontify-script 'multi-level))
+#+end_src
+
+*** AucTeX
+#+begin_src emacs-lisp
+(use-package auctex
+  :ensure (auctex :pre-build (("./autogen.sh")
+                              ("./configure"
+                               "--with-texmf-dir=$(dirname $(kpsexpand '$TEXMFHOME'))")
+                              ("make")))
+  :mode ("\\.tex\\'" . LaTeX-mode))
+#+end_src
+
+*** Reftex
+#+begin_src emacs-lisp
+(use-package reftex
+  :ensure nil
+  :config
+  (setopt reftex-label-alist '(("theorem" 104 "thm:" nil nil nil -3)
+                               ("lemma" 108 "lem:" nil nil nil -3))
+          reftex-insert-label-flags '("s" "sfthl")))
+#+end_src
+
+*** Texlab with Eglot
+=lsp-mode=, for some weird reason, is /really/ lagging in LaTeX documents, while Eglot is not. This tends to annoy and distract me. Let's create a simple interface to Texlab features with Eglot.
+
+#+begin_src emacs-lisp
+(after! (eglot tex-mode)
+  (setopt eglot-workspace-configuration
+          (plist-put eglot-workspace-configuration
+                     :texlab '(:build
+                               (:args ["-interaction=nonstopmode" "-synctex=1" "%f"]
+                                :buildParent t)
+                               :forwardSearch
+                               (:executable "zathura"
+                                :args ["--synctex-forward" "%l:1:%f" "%p"])
+                               :experimental
+                               (:labelReferenceCommands ["nameref"]))))
+
+  (defun eglot-texlab-build ()
+    (interactive)
+    (save-buffer)
+    (jsonrpc-async-request
+     (eglot--current-server-or-lose)
+     :textDocument/build (eglot--TextDocumentPositionParams)
+     :success-fn (lambda (r) (message "Build %s" r))
+     :success-fn (lambda (r) (message "Error %s" r))
+     :deferred t))
+
+  (defun eglot-texlab-forward-search ()
+    (interactive)
+    (jsonrpc-async-request
+     (eglot--current-server-or-lose)
+     :textDocument/forwardSearch (eglot--TextDocumentPositionParams)
+     :success-fn (lambda (r) (message "Search %s" r))
+     :success-fn (lambda (r) (message "Error %s" r))
+     :deferred t))
+
+  (modal-setmap LaTeX-mode-map mode-map
+                "a" #'eglot-texlab-build
+                "f" #'eglot-texlab-forward-search)
+
+  (setmap LaTeX-mode-map
+          "C-c C-a" #'eglot-texlab-build
+          "C-c C-f" #'eglot-texlab-forward-search))
+#+end_src
+
+** Lean
+#+begin_src emacs-lisp
+(use-package lean4-mode
+  :ensure (lean4-mode :repo "~/dados/projetos/codigo/emacs/lean4-eglot-mode/"
+                      :files ("*.el" "data")))
+#+end_src
+
+** YAML
+#+begin_src emacs-lisp
+(use-package yaml-mode)
+#+end_src
+
+** Haskell
+#+begin_src emacs-lisp
+(use-package haskell-mode)
+#+end_src
+
+*** Lsp-mode
+#+begin_src emacs-lisp
+(use-package lsp-haskell
+  :after '(lsp-mode haskell-mode)
+  :config
+  (setopt lsp-haskell-server-path "haskell-language-server-wrapper"
+          lsp-haskell-formatting-provider "fourmolu"
+          lsp-haskell-plugin-eval-global-on t
+          lsp-haskell-plugin-class-global-on nil
+          lsp-haskell-plugin-ghcide-type-lenses-global-on t
+          lsp-haskell-plugin-ghcide-completions-config-auto-extend-on t
+          lsp-haskell-plugin-import-lens-code-lens-on nil
+          lsp-haskell-plugin-import-lens-code-actions-on t)
+  (lsp-defcustom lsp-haskell-plugin-semantic-tokens t
+    "Enables semtok"
+    :type 'boolean
+    :group 'lsp-haskell-plugins
+    :package-version '(lsp-mode . "8.0.1")
+    :lsp-path "haskell.plugin.semanticTokens.globalOn"))
+
+(after! eglot
+  (setopt eglot-workspace-configuration
+          (plist-put eglot-workspace-configuration
+                     :haskell '(:formattingProvider "fourmolu"))))
+  
+#+end_src
+
+** PDF
+#+begin_src emacs-lisp
+(use-package pdf-tools
+  :mode  ("\\.pdf\\'" . pdf-view-mode)
+  :config
+  (setopt pdf-view-display-size 'fit-page)
+  (add-hook 'pdf-view-mode-hook
+            (defun pdf-evil-disable-cursor ()
+              (set (make-local-variable 'evil-normal-state-cursor) (list nil))))
+  (advice-add 'pdf-view-enlarge :after (lambda (_) (pdf-view-center-in-window))))
+#+end_src
+
+* Scientific writing (mostly mathematics)
+** COMMENT Mamimo
+#+begin_src emacs-lisp
+(use-package latex
+  :ensure (auctex :pre-build
+                  (("./autogen.sh")
+                   ("./configure"
+                    "--with-texmf-dir=$(dirname $(kpsexpand '$TEXMFHOME'))")
+                   ("make"))))
+
+(use-package mamimo
+  :ensure (:repo "~/.config/emacs-new/lisp/lib/mamimo"
+           :files ("*.el" "snippets"))
+  :commands (mamimo-mode
+             mamimo-yas-mode
+             mamimo-smartkeys-mode)
+  :config
+  (add-hook 'mamimo-mode-hook 'evil-tex-mode))
+#+end_src
+
+** Abbrev
+*** Language & math predicate
+#+begin_src emacs-lisp
+(defcustom abbrev/math-text-lang 'pt
+  "docs"
+  :safe #'symbolp)
+
+(defun abbrev/set-math-text-lang ()
+  (interactive)
+  (when-let ((key (car (org-collect-keywords '("language")))))
+    (setq abbrev/math-text-lang (make-symbol (cadr key)))))
+
+(defun abbrev/math-text-pt-p () (and (mamimo-notmathp) (string= abbrev/math-text-lang 'pt)))
+(defun abbrev/math-text-en-p () (and (mamimo-notmathp) (string= abbrev/math-text-lang 'en)))
+#+end_src
+
+*** Textual abbrevs
+#+begin_src emacs-lisp
+(setq abbrev/math-text-abbrevs-pt
+  '(("pa" "podemos assumir")
+    ("pd" "por definição")
+    ("ie" "i.e.")
+    ("tq" "tal que")
+    ("ssg" "suficientemente grande")
+    ("spg" "sem perda de generalidade")
+    ("qtp" "q.t.p.")
+    ("sss" "se, e somente se,")
+    ("mdd" "medida")
+    ("cjto" "conjunto")
+    ("li" "linearmente independentes")))
+
+(setq abbrev/math-text-abbrevs-en
+  '(("wlog" "without loss of generality")
+    ("iff" "if and only if")
+    ("ie" "i.e.")
+    ("st" "such that")
+    ("ae" "a.e.")
+    ("pos" "positive")
+    ("neg" "negative")
+    ("wrt" "with respect to")
+    ("meas" "measure")
+    ("bd" "by definition")
+    ("li" "linearly independent")))
+#+end_src
+
+*** Variable abbrevs
+#+begin_src emacs-lisp
+(setq abbrev/var-abbrevs-pt '(b c d f g h i j k l m n p q r s t u v w x y z))
+(setq abbrev/var-abbrevs-en '(b c d e f g h j k l m n o p q r s t u v w x y z))
+
+(defun abbrev/compile-var-abbrevs (abbrevs)
+  (mapcar (lambda (s) (list (symbol-name s) (format "\\(%s\\)" s) nil :system t))
+          abbrevs))
+#+end_src
+
+*** Tables and mode-local tables
+#+begin_src emacs-lisp
+(setq abbrev/tables
+  `((abbrev/math-text-pt-table
+     ,(append
+       abbrev/math-text-abbrevs-pt
+       (abbrev/compile-var-abbrevs abbrev/var-abbrevs-pt))
+     abbrev/math-text-pt-p)
+    (abbrev/math-text-en-table
+     ,(append
+       abbrev/math-text-abbrevs-en
+       (abbrev/compile-var-abbrevs abbrev/var-abbrevs-en))
+     abbrev/math-text-en-p)))
+
+(defun abbrev/setup ()
+  (require 'abbrev)
+  (abbrev/set-math-text-lang)
+  (setq-local local-abbrev-table nil)
+  (pcase-dolist (`(,name ,defs ,cond) abbrev/tables)
+   (define-abbrev-table name defs :enable-function cond)
+   (push (symbol-value name) local-abbrev-table))
+  (abbrev-mode +1))
+
+(add-hook 'mamimo-mode-hook #'abbrev/setup)
+#+end_src
+
+** Boox attach
+#+begin_src emacs-lisp
+(defun boox/copy-and-process (basename callback)
+  (let ((fp "/adb:8A3DF2BF:storage/self/primary/note/export/export.pdf"))
+    (when (file-readable-p fp)
+        (when-let ((tmpdir (make-temp-file "boox-export" t))
+                   (tmpin (concat tmpdir "/in.pdf"))
+                   (tmpout (format "%s/%s.png" tmpdir basename)))
+          (copy-file fp tmpin)
+          (let ((lastpage (shell-command-to-string (format "pdfinfo %s | awk '/^Pages:/ {print $2}'" tmpin)))
+                (marker (point-marker)))
+            (async-start-process
+             "inkscape-convert"
+             "inkscape"
+             (lambda (_)
+               (message "Inkscape finished.")
+               (with-current-buffer (marker-buffer marker)
+                 (without-restriction
+                   (save-excursion
+                     (goto-char (marker-position marker))
+                     (condition-case e
+                         (funcall callback tmpout)
+                       (error (message "Handler threw an error: %s" e)))
+                     (delete-directory tmpdir t nil)))))
+             "--actions=select-by-selector:svg>g>use;delete;page-fit-to-selection"
+             "--pdf-poppler"
+             (concat "--pages=" lastpage)
+             "-o" tmpout
+             tmpin))))))
+
+(defun boox/org-handler (tmpout)
+  (require 'org-attach)
+  (require 'org-download)
+  (let ((org-attach-store-link-p 'attached))
+       (org-attach-attach tmpout nil 'cp))
+  (org-insert-link nil (caar org-stored-links) ""))
+
+(defun boox/tex-handler (tmpout)
+  (let* ((file (read-file-name "Directory or file: " nil ""))
+         (out (if (or (string= file "") (file-directory-p file))
+                  (concat file (file-name-nondirectory tmpout))
+                file)))
+    (make-directory (file-name-directory out) 't)
+    (copy-file tmpout out t)
+    (let ((LaTeX-default-environment "figure")
+          (TeX-default-macro "includegraphics")
+          (LaTeX-includegraphics-read-file (lambda () (file-relative-name out))))
+      (call-interactively #'LaTeX-environment)
+      (call-interactively #'TeX-insert-macro))))
+
+(defvar boox/handlers '((org-mode . boox/org-handler)
+                        (latex-mode . boox/tex-handler)))
+
+(defun boox/attach-last-figure-adb (basename)
+  (interactive "sName: ")
+  (if-let ((handler (alist-get major-mode boox/handlers)))
+      (boox/copy-and-process basename handler)
+    (message "No handlers available for mode.")))
+#+end_src
+
