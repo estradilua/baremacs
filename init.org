@@ -1647,7 +1647,7 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
      (eglot--current-server-or-lose)
      :textDocument/build (eglot--TextDocumentPositionParams)
      :success-fn (lambda (r) (message "Build %s" r))
-     :success-fn (lambda (r) (message "Error %s" r))
+     :error-fn (lambda (r) (message "Error %s" r))
      :deferred t))
 
   (defun eglot-texlab-forward-search ()
@@ -1656,7 +1656,7 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
      (eglot--current-server-or-lose)
      :textDocument/forwardSearch (eglot--TextDocumentPositionParams)
      :success-fn (lambda (r) (message "Search %s" r))
-     :success-fn (lambda (r) (message "Error %s" r))
+     :error-fn (lambda (r) (message "Error %s" r))
      :deferred t))
 
   (modal-setmap LaTeX-mode-map mode-map
