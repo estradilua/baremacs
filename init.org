@@ -1211,6 +1211,66 @@ Custom predicate for composing only inside LaTeX delimiters.
     citar-symbol-separator " "))
 #+end_src
 
+** Boox attach
+#+begin_src emacs-lisp
+(defun boox/copy-and-process (basename callback)
+  (let ((fp "/adb:8A3DF2BF:storage/self/primary/note/export/export.pdf"))
+    (when (file-readable-p fp)
+        (when-let ((tmpdir (make-temp-file "boox-export" t))
+                   (tmpin (concat tmpdir "/in.pdf"))
+                   (tmpout (format "%s/%s.png" tmpdir basename)))
+          (copy-file fp tmpin)
+          (let ((lastpage (shell-command-to-string (format "pdfinfo %s | awk '/^Pages:/ {print $2}'" tmpin)))
+                (marker (point-marker)))
+            (async-start-process
+             "inkscape-convert"
+             "inkscape"
+             (lambda (_)
+               (message "Inkscape finished.")
+               (with-current-buffer (marker-buffer marker)
+                 (without-restriction
+                   (save-excursion
+                     (goto-char (marker-position marker))
+                     (condition-case e
+                         (funcall callback tmpout)
+                       (error (message "Handler threw an error: %s" e)))
+                     (delete-directory tmpdir t nil)))))
+             "--actions=select-by-selector:svg>g>use;delete;page-fit-to-selection"
+             "--pdf-poppler"
+             (concat "--pages=" lastpage)
+             "-o" tmpout
+             tmpin))))))
+
+(defun boox/org-handler (tmpout)
+  (require 'org-attach)
+  (require 'org-download)
+  (let ((org-attach-store-link-p 'attached))
+       (org-attach-attach tmpout nil 'cp))
+  (org-insert-link nil (caar org-stored-links) ""))
+
+(defun boox/tex-handler (tmpout)
+  (let* ((file (read-file-name "Directory or file: " nil ""))
+         (out (if (or (string= file "") (file-directory-p file))
+                  (concat file (file-name-nondirectory tmpout))
+                file)))
+    (make-directory (file-name-directory out) 't)
+    (copy-file tmpout out t)
+    (let ((LaTeX-default-environment "figure")
+          (TeX-default-macro "includegraphics")
+          (LaTeX-includegraphics-read-file (lambda () (file-relative-name out))))
+      (call-interactively #'LaTeX-environment)
+      (call-interactively #'TeX-insert-macro))))
+
+(defvar boox/handlers '((org-mode . boox/org-handler)
+                        (latex-mode . boox/tex-handler)))
+
+(defun boox/attach-last-figure-adb (basename)
+  (interactive "sName: ")
+  (if-let ((handler (alist-get major-mode boox/handlers)))
+      (boox/copy-and-process basename handler)
+    (message "No handlers available for mode.")))
+#+end_src
+
 ** AAS setup
 #+begin_src emacs-lisp
 (defun tempel--tex-arg (&optional prompt)
@@ -1662,166 +1722,5 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
             (defun pdf-evil-disable-cursor ()
               (set (make-local-variable 'evil-normal-state-cursor) (list nil))))
   (advice-add 'pdf-view-enlarge :after (lambda (_) (pdf-view-center-in-window))))
-#+end_src
-
-* Scientific writing (mostly mathematics)
-** COMMENT Mamimo
-#+begin_src emacs-lisp
-(use-package latex
-  :ensure (auctex :pre-build
-                  (("./autogen.sh")
-                   ("./configure"
-                    "--with-texmf-dir=$(dirname $(kpsexpand '$TEXMFHOME'))")
-                   ("make"))))
-
-(use-package mamimo
-  :ensure (:repo "~/.config/emacs-new/lisp/lib/mamimo"
-           :files ("*.el" "snippets"))
-  :commands (mamimo-mode
-             mamimo-yas-mode
-             mamimo-smartkeys-mode)
-  :config
-  (add-hook 'mamimo-mode-hook 'evil-tex-mode))
-#+end_src
-
-** Abbrev
-*** Language & math predicate
-#+begin_src emacs-lisp
-(defcustom abbrev/math-text-lang 'pt
-  "docs"
-  :safe #'symbolp)
-
-(defun abbrev/set-math-text-lang ()
-  (interactive)
-  (when-let ((key (car (org-collect-keywords '("language")))))
-    (setq abbrev/math-text-lang (make-symbol (cadr key)))))
-
-(defun abbrev/math-text-pt-p () (and (mamimo-notmathp) (string= abbrev/math-text-lang 'pt)))
-(defun abbrev/math-text-en-p () (and (mamimo-notmathp) (string= abbrev/math-text-lang 'en)))
-#+end_src
-
-*** Textual abbrevs
-#+begin_src emacs-lisp
-(setq abbrev/math-text-abbrevs-pt
-  '(("pa" "podemos assumir")
-    ("pd" "por definição")
-    ("ie" "i.e.")
-    ("tq" "tal que")
-    ("ssg" "suficientemente grande")
-    ("spg" "sem perda de generalidade")
-    ("qtp" "q.t.p.")
-    ("sss" "se, e somente se,")
-    ("mdd" "medida")
-    ("cjto" "conjunto")
-    ("li" "linearmente independentes")))
-
-(setq abbrev/math-text-abbrevs-en
-  '(("wlog" "without loss of generality")
-    ("iff" "if and only if")
-    ("ie" "i.e.")
-    ("st" "such that")
-    ("ae" "a.e.")
-    ("pos" "positive")
-    ("neg" "negative")
-    ("wrt" "with respect to")
-    ("meas" "measure")
-    ("bd" "by definition")
-    ("li" "linearly independent")))
-#+end_src
-
-*** Variable abbrevs
-#+begin_src emacs-lisp
-(setq abbrev/var-abbrevs-pt '(b c d f g h i j k l m n p q r s t u v w x y z))
-(setq abbrev/var-abbrevs-en '(b c d e f g h j k l m n o p q r s t u v w x y z))
-
-(defun abbrev/compile-var-abbrevs (abbrevs)
-  (mapcar (lambda (s) (list (symbol-name s) (format "\\(%s\\)" s) nil :system t))
-          abbrevs))
-#+end_src
-
-*** Tables and mode-local tables
-#+begin_src emacs-lisp
-(setq abbrev/tables
-  `((abbrev/math-text-pt-table
-     ,(append
-       abbrev/math-text-abbrevs-pt
-       (abbrev/compile-var-abbrevs abbrev/var-abbrevs-pt))
-     abbrev/math-text-pt-p)
-    (abbrev/math-text-en-table
-     ,(append
-       abbrev/math-text-abbrevs-en
-       (abbrev/compile-var-abbrevs abbrev/var-abbrevs-en))
-     abbrev/math-text-en-p)))
-
-(defun abbrev/setup ()
-  (require 'abbrev)
-  (abbrev/set-math-text-lang)
-  (setq-local local-abbrev-table nil)
-  (pcase-dolist (`(,name ,defs ,cond) abbrev/tables)
-   (define-abbrev-table name defs :enable-function cond)
-   (push (symbol-value name) local-abbrev-table))
-  (abbrev-mode +1))
-
-(add-hook 'mamimo-mode-hook #'abbrev/setup)
-#+end_src
-
-** Boox attach
-#+begin_src emacs-lisp
-(defun boox/copy-and-process (basename callback)
-  (let ((fp "/adb:8A3DF2BF:storage/self/primary/note/export/export.pdf"))
-    (when (file-readable-p fp)
-        (when-let ((tmpdir (make-temp-file "boox-export" t))
-                   (tmpin (concat tmpdir "/in.pdf"))
-                   (tmpout (format "%s/%s.png" tmpdir basename)))
-          (copy-file fp tmpin)
-          (let ((lastpage (shell-command-to-string (format "pdfinfo %s | awk '/^Pages:/ {print $2}'" tmpin)))
-                (marker (point-marker)))
-            (async-start-process
-             "inkscape-convert"
-             "inkscape"
-             (lambda (_)
-               (message "Inkscape finished.")
-               (with-current-buffer (marker-buffer marker)
-                 (without-restriction
-                   (save-excursion
-                     (goto-char (marker-position marker))
-                     (condition-case e
-                         (funcall callback tmpout)
-                       (error (message "Handler threw an error: %s" e)))
-                     (delete-directory tmpdir t nil)))))
-             "--actions=select-by-selector:svg>g>use;delete;page-fit-to-selection"
-             "--pdf-poppler"
-             (concat "--pages=" lastpage)
-             "-o" tmpout
-             tmpin))))))
-
-(defun boox/org-handler (tmpout)
-  (require 'org-attach)
-  (require 'org-download)
-  (let ((org-attach-store-link-p 'attached))
-       (org-attach-attach tmpout nil 'cp))
-  (org-insert-link nil (caar org-stored-links) ""))
-
-(defun boox/tex-handler (tmpout)
-  (let* ((file (read-file-name "Directory or file: " nil ""))
-         (out (if (or (string= file "") (file-directory-p file))
-                  (concat file (file-name-nondirectory tmpout))
-                file)))
-    (make-directory (file-name-directory out) 't)
-    (copy-file tmpout out t)
-    (let ((LaTeX-default-environment "figure")
-          (TeX-default-macro "includegraphics")
-          (LaTeX-includegraphics-read-file (lambda () (file-relative-name out))))
-      (call-interactively #'LaTeX-environment)
-      (call-interactively #'TeX-insert-macro))))
-
-(defvar boox/handlers '((org-mode . boox/org-handler)
-                        (latex-mode . boox/tex-handler)))
-
-(defun boox/attach-last-figure-adb (basename)
-  (interactive "sName: ")
-  (if-let ((handler (alist-get major-mode boox/handlers)))
-      (boox/copy-and-process basename handler)
-    (message "No handlers available for mode.")))
 #+end_src
 
