@@ -1,7 +1,20 @@
-#+title: Emacs Configuration
 #+property: header-args :lexical t :results none
 #+startup: content
 #+todo: ORGANIZE(o) TODO(t) | DONE (d)
+
+This Emacs config attemps to use the bundled libraries as much as possible, but only when it makes sense to do so. For about three years I used [[https://github.com/doomemacs/doomemacs][Doom Emacs]], which was great to introduce me to how Emacs works and its ecossystem, but after having a go at this vanilla configuration, I can assure you that you can build a config that works much better for you, is more stable and has more features than you ever could with Doom. Of couse, this requires work, but for me this was very much worth it.
+
+Here is an overview of features:
+- Persistence across sessions via built-in ~savehist~ and ~desktop~ packages;
+- Project management via built-in ~project~, enhanced via ~project-tab-groups~ and ~tab-bar-echo-area~ to make it very much like ~perspective~ but way more stable and integrated;
+- ~evil~! The muscle memory is way too strong to give up on this one!
+- Everything Minad has gifted Earth:
+  - ~vertico~ completion interface, with ~marginalia~ annotations and ~nerd-icons~;
+  - ~corfu~ completion-at-point interface, along with ~cape~ goodies;
+  - ~tempel~, great template (snippets) system;
+  - ~jinx~ spell correction;
+- ~embark~ for "transient" actions --- very much like a mouse right-click;
+- LSP via ~eglot~, with additional features such as semantic tokens; 
 
 * Elpaca setup
 #+begin_src emacs-lisp
