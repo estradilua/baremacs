@@ -907,7 +907,10 @@ Add a hook after theme changes.
 ** Magit
 #+begin_src emacs-lisp
 (use-package magit
-  :ensure (:source "NonGNU ELPA"))
+  :ensure (:source "NonGNU ELPA")
+  :config
+  (setopt magit-display-buffer-function #'magit-display-buffer-fullframe-status-v1))
+
 (use-package transient
   :ensure (:source "NonGNU ELPA"))
 #+end_src
