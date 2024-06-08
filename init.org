@@ -20,7 +20,19 @@ Now we make it so that =use-package= declarations are installed by Elpaca by def
         use-package-always-defer t)
 #+end_src
 
-* Useful libraries
+* Useful toolbox
+#+begin_src emacs-lisp
+(defmacro cmd! (&rest forms) `(lambda () (interactive) ,@forms))
+#+end_src
+
+#+begin_src emacs-lisp
+(defun setmap (map &rest defs)
+  (while defs
+    (keymap-set map (car defs) (cadr defs))
+    (setq defs (cddr defs))))
+#+end_src
+
+* Performance
 ** GCMH
 #+begin_src emacs-lisp
 (use-package gcmh
@@ -35,18 +47,11 @@ Now we make it so that =use-package= declarations are installed by Elpaca by def
 #+end_src
 
 ** Custom leader
-This is pretty much a Hack but it is Short and it Works.
+This is pretty much a hack but it is short and it works.
 
 #+begin_src emacs-lisp
 (defvar leader-key (kbd "SPC"))
 (defvar leader-alt-key (kbd "M-SPC"))
-#+end_src
-
-#+begin_src emacs-lisp
-(defun setmap (map &rest defs)
-  (while defs
-    (keymap-set map (car defs) (cadr defs))
-    (setq defs (cddr defs))))
 #+end_src
 
 #+begin_src emacs-lisp
