@@ -151,15 +151,15 @@ This functionality allows binding many keys to TAB via a hook. The command will 
          :map buffer-map
          ("l" . evil-switch-to-windows-last-buffer))
   :init
-  (setopt evil-want-integration t
-          evil-lookup-func #'helpful-at-point
-          evil-shift-round nil
-          evil-cross-lines t
-          evil-undo-system 'undo-redo
-          evil-move-cursor-back nil
-          evil-want-fine-undo t
-          evil-respect-visual-line-mode t
-          evil-want-keybinding nil)
+  (setq evil-want-integration t
+        evil-lookup-func #'helpful-at-point
+        evil-shift-round nil
+        evil-cross-lines t
+        evil-undo-system 'undo-redo
+        evil-move-cursor-back nil
+        evil-want-fine-undo t
+        evil-respect-visual-line-mode t
+        evil-want-keybinding nil)
   (evil-mode 1)
   :config
   (set-keymap-parent window-map evil-window-map)
@@ -916,11 +916,21 @@ Let's add some keys to it.
           "c f" #'magit-commit-fixup))
 #+end_src
 
-** Persistence (savehist)
+** Persistence
+*** Savehist
 #+begin_src emacs-lisp
 (use-package savehist
   :ensure nil
   :hook (after-init . savehist-mode))
+#+end_src
+
+*** Desktop
+#+begin_src emacs-lisp
+(add-hook 'elpaca-after-init-hook
+  (defun enable-desktop-save-h ()
+    (desktop-read)
+    (desktop-save-mode 1))
+  99)
 #+end_src
 
 ** Projects
