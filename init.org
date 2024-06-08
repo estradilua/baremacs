@@ -742,8 +742,7 @@ targets."
 * Functionality
 ** Custom
 #+begin_src emacs-lisp
-(setopt custom-file (expand-file-name "custom.el" user-emacs-directory))
-(add-hook 'elpaca-after-init-hook (lambda () (load custom-file)))
+(setopt custom-file "/dev/null")
 #+end_src
 
 Add a hook after theme changes.
@@ -812,6 +811,8 @@ Add a hook after theme changes.
         ring-bell-function #'ignore
         revert-without-query '(".")
         use-short-answers t)
+
+(defun display-startup-echo-area-message ())
 #+end_src
 
 ** Good scrolling
@@ -926,6 +927,14 @@ Let's add some keys to it.
 
 *** Desktop
 #+begin_src emacs-lisp
+(with-eval-after-load 'desktop
+  (add-to-list 'desktop-globals-to-save 'custom-enabled-themes)
+  (add-hook 'desktop-after-read-hook
+            (defun desktop-apply-theme-h ()
+              (dolist (theme custom-enabled-themes)
+                (unless (custom-theme-p theme)
+                  (load-theme theme :no-confirm))))))
+
 (add-hook 'elpaca-after-init-hook
   (defun enable-desktop-save-h ()
     (desktop-read)
@@ -965,6 +974,7 @@ Let's add some keys to it.
   (tab-bar-echo-area-mode 1)
   :config
   (push #'project-switch-project tab-bar-echo-area-trigger-display-functions)
+  (push #'desktop-read tab-bar-echo-area-trigger-display-functions)
   (tab-bar-echo-area-apply-display-tab-names-advice))
 #+end_src
 
