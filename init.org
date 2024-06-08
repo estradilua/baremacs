@@ -946,7 +946,7 @@ Let's add some keys to it.
           project-vc-extra-root-markers '("latexmkrc")))
 #+end_src
 
-*** Tabspaces
+** Tab groups
 #+begin_src emacs-lisp
 (use-package tab-bar
   :ensure nil
@@ -958,22 +958,16 @@ Let's add some keys to it.
           tab-bar-tab-hints t
           tab-bar-new-tab-choice "*scratch*"))
 
-(use-package tabspaces
+(use-package project-tab-groups
   :init
-  (setopt tabspaces-session t
-          tabspaces-session-auto-restore t)
-  (defun tabspaces-open-or-create-project ()
-    (interactive)
-    (tabspaces-open-or-create-project-and-workspace (funcall project-prompter) current-prefix-arg))
-  (tabspaces-mode 1)
-  :bind (:map project-prefix-map ("p" . tabspaces-open-or-create-project))
-  :bind ("M-z" . tab-bar-mode)
+  (project-tab-groups-mode 1))
+
+(use-package tab-bar-echo-area
+  :init
+  (tab-bar-echo-area-mode 1)
   :config
-  (setopt tabspaces-use-filtered-buffers-as-default t
-          tabspaces-default-tab "Default"
-          tabspaces-remove-to-default nil
-          tabspaces-include-buffers '()
-          tabspaces-todo-file-name "project-todo.org"))
+  (push #'project-switch-project tab-bar-echo-area-trigger-display-functions)
+  (tab-bar-echo-area-apply-display-tab-names-advice))
 #+end_src
 
 **** Consult source
