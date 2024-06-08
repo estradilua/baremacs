@@ -1546,8 +1546,12 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
   :commands (org-mode)
   :config
   (modal-setmap org-mode-map mode-map
-                    "." #'consult-org-heading
-                    "i" #'consult-org-heading)
+                "." #'consult-org-heading
+                "i" #'consult-org-heading
+                "s p" #'org-paste-subtree
+                "s y" #'org-copy-subtree
+                "s d" #'org-cut-subtree
+                "s a" #'org-archive-subtree)
   (evil-define-key 'normal org-mode-map "\\" #'org-edit-special)
   (evil-define-minor-mode-key 'normal 'org-src-mode "\\" #'org-edit-src-exit)
   (setopt org-indent-indentation-per-level 1
