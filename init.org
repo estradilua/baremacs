@@ -21,17 +21,6 @@ Now we make it so that =use-package= declarations are installed by Elpaca by def
 #+end_src
 
 * Useful libraries
-** Doom
-Never forget your roots!!
-#+begin_src emacs-lisp
-(elpaca (doom-lib :host github
-                  :repo "doomemacs/doomemacs"
-                  :branch "master"
-                  :files ("lisp/doom-lib.el")))
-
-(elpaca-wait)
-(require 'doom-lib)
-#+end_src
 ** GCMH
 #+begin_src emacs-lisp
 (use-package gcmh
@@ -283,58 +272,54 @@ This functionality allows binding many keys to TAB via a hook. The command will 
   (advice-add #'eglot-completion-at-point :around #'cape-wrap-nonexclusive)
   (advice-add #'pcomplete-completions-at-point :around #'cape-wrap-nonexclusive)
 
-  (add-hook! prog-mode
-    (defun +corfu-add-cape-file-h ()
-      (add-hook 'completion-at-point-functions #'cape-file -10 t)))
+  (defun +corfu-add-cape-file-h ()
+    (add-hook 'completion-at-point-functions #'cape-file -10 t))
 
-  (add-hook! (org-mode markdown-mode)
-    (defun +corfu-add-cape-elisp-block-h ()
-      (add-hook 'completion-at-point-functions #'cape-elisp-block 0 t)))
+  (add-hook 'prog-mode-hook #'+corfu-add-cape-file-h)
 
-  (add-hook! (prog-mode conf-mode)
-    (defun +corfu-add-cape-emoji-h ()
-      (add-hook 'completion-at-point-functions
-                (cape-capf-inside-faces
-                 (cape-capf-prefix-length #'cape-emoji 1)
-                 ;; Only call inside comments and docstrings.
-                 'tree-sitter-hl-face:doc 'font-lock-doc-face
-                 'font-lock-comment-face 'tree-sitter-hl-face:comment)
-                10 t)))
+  (defun +corfu-add-cape-elisp-block-h ()
+    (add-hook 'completion-at-point-functions #'cape-elisp-block 0 t))
 
-  (after! dabbrev
+  (dolist (h '(org-mode-hook markdown-mode-hook))
+    (add-hook h #'+corfu-add-cape-elisp-block-h))
+
+  (with-eval-after-load 'dabbrev
     (setq dabbrev-ignored-buffer-regexps
           '("^ " "\\(TAGS\\|tags\\|ETAGS\\|etags\\|GTAGS\\|GRTAGS\\|GPATH\\)\\(<[0-9]+>\\)?")
           dabbrev-upcase-means-case-search t)
     (add-to-list 'dabbrev-ignored-buffer-modes 'pdf-view-mode))
 
-  (add-hook! (prog-mode conf-mode comint-mode minibuffer-setup eshell-mode)
-    (defun +corfu-add-cape-dabbrev-h ()
-      (add-hook 'completion-at-point-functions #'cape-dabbrev 20 t)))
+  (defun +corfu-add-cape-dabbrev-h ()
+    (add-hook 'completion-at-point-functions #'cape-dabbrev 20 t))
 
-  (add-hook! text-mode
-    (defun +corfu-add-cape-dabbrev-dict-h ()
-      (add-hook 'completion-at-point-functions (cape-capf-super #'cape-dabbrev #'cape-dict) 30 t))))
+  (dolist (h '(prog-mode-hook conf-mode-hook minibuffer-setup-hook))
+    (add-hook h #'+corfu-add-cape-dabbrev-h))
+
+  (defun +corfu-add-cape-dabbrev-dict-h ()
+    (add-hook 'completion-at-point-functions (cape-capf-super #'cape-dabbrev #'cape-dict) 30 t))
+
+  (add-hook 'text-mode-hook #'+corfu-add-cape-dabbrev-dict-h))
 #+end_src
 
 The ~cape-dabbrev~ backend does not handle casing very well; see my issue [[https://github.com/minad/cape/issues/116][here]]. The following advice makes ~cape-dabbrev~ match the case of uppercase words with the case of the completion prefix.
 
 #+begin_src emacs-lisp
-(defadvice! cape--dabbrev-list-ad (input)
-  "Find all Dabbrev expansions for INPUT."
-  :override #'cape--dabbrev-list
-  (cape--silent
-    (let ((dabbrev-check-other-buffers (not (null cape-dabbrev-check-other-buffers)))
-          (dabbrev-check-all-buffers (eq cape-dabbrev-check-other-buffers t)))
-      (dabbrev--reset-global-variables))
-    (cons
-     (apply-partially #'string-prefix-p input)
-     (cl-loop with min-len = (+ cape-dabbrev-min-length (length input))
-               with ic = (cape--case-fold-p dabbrev-case-fold-search)
-               for w in (dabbrev--find-all-expansions input ic)
-               if (>= (length w) min-len) collect
-               (let ((dw (if (let (case-fold-search) (not (string-match-p "[[:lower:]]" w)))
-                             w (downcase w))))
-                (cape--case-replace (and ic dabbrev-case-replace) input dw))))))
+(advice-add #'cape--dabbrev-list :override
+  (defun cape--dabbrev-list-ad (input)
+    "Find all Dabbrev expansions for INPUT."
+    (cape--silent
+      (let ((dabbrev-check-other-buffers (not (null cape-dabbrev-check-other-buffers)))
+            (dabbrev-check-all-buffers (eq cape-dabbrev-check-other-buffers t)))
+        (dabbrev--reset-global-variables))
+      (cons
+       (apply-partially #'string-prefix-p input)
+       (cl-loop with min-len = (+ cape-dabbrev-min-length (length input))
+                 with ic = (cape--case-fold-p dabbrev-case-fold-search)
+                 for w in (dabbrev--find-all-expansions input ic)
+                 if (>= (length w) min-len) collect
+                 (let ((dw (if (let (case-fold-search) (not (string-match-p "[[:lower:]]" w)))
+                               w (downcase w))))
+                  (cape--case-replace (and ic dabbrev-case-replace) input dw)))))))
 #+end_src
 
 ** Consult
@@ -487,11 +472,11 @@ The ~cape-dabbrev~ backend does not handle casing very well; see my issue [[http
   :bind (("M-+" . tempel-complete) ;; Alternative tempel-expand
          ("M-*" . tempel-insert))
   :init
-  (defadvice! tempel-next-ad (arg)
-    "Move ARG fields forward and REALLY quit at the end."
-    :after #'tempel-next
-    (unless (tempel--find arg)
-      (tempel-done)))
+  (advice-add #'tempel-next :after
+    (defun tempel-next-ad (arg)
+      "Move ARG fields forward and REALLY quit at the end."
+      (unless (tempel--find arg)
+        (tempel-done))))
   
   ;; Setup completion at point
   (defun tempel-setup-capf ()
@@ -973,33 +958,32 @@ Let's add some keys to it.
   (tab-bar-echo-area-apply-display-tab-names-advice))
 #+end_src
 
-**** Consult source
+**** COMMENT Consult source
 #+begin_src emacs-lisp
-(after! (tabspaces consult)
-  (defun tabspaces-buffer-names ()
-    (let ((exclude-re (consult--regexp-filter consult-buffer-filter))
-          (buffers (consult--buffer-sort-visibility
-                    (seq-copy (frame-parameter nil 'buffer-list)))))
-      (consult--keep! buffers
-        (unless (or (string-match-p exclude-re (buffer-name it))
-                    (eq (current-buffer) it))
-          (consult--buffer-pair it)))
-      buffers))
+(defun tabspaces-buffer-names ()
+  (let ((exclude-re (consult--regexp-filter consult-buffer-filter))
+        (buffers (consult--buffer-sort-visibility
+                  (seq-copy (frame-parameter nil 'buffer-list)))))
+    (consult--keep! buffers
+      (unless (or (string-match-p exclude-re (buffer-name it))
+                  (eq (current-buffer) it))
+        (consult--buffer-pair it)))
+    buffers))
 
-  (setq consult--source-tab-local
-    `(:name "Tab Buffer"
-      :narrow (?l . "Tab")
-      :category buffer
-      :face consult-buffer
-      :history buffer-name-history
-      :state ,#'consult--buffer-state
-      :action ,#'consult--buffer-action
-      :items ,#'tabspaces-buffer-names
-      ,(lambda () (consult--buffer-query :sort 'visibility
-                                         :as #'consult--buffer-pair))))
+(setq consult--source-tab-local
+      `(:name "Tab Buffer"
+        :narrow (?l . "Tab")
+        :category buffer
+        :face consult-buffer
+        :history buffer-name-history
+        :state ,#'consult--buffer-state
+        :action ,#'consult--buffer-action
+        :items ,#'tabspaces-buffer-names
+        ,(lambda () (consult--buffer-query :sort 'visibility
+                                           :as #'consult--buffer-pair))))
 
-  (add-to-list 'consult-buffer-sources 'consult--source-tab-local)
-  (add-to-list 'consult-project-buffer-sources 'consult--source-tab-local))
+(add-to-list 'consult-buffer-sources 'consult--source-tab-local)
+(add-to-list 'consult-project-buffer-sources 'consult--source-tab-local)
 #+end_src
 
 ** Recentf
@@ -1024,7 +1008,7 @@ Let's add some keys to it.
 Let's also add a dir-local saving option. 
 
 #+begin_src emacs-lisp
-(after! jinx
+(with-eval-after-load 'jinx
   (defun jinx--save-dir (save key word)
     "Save WORD in dir-local variable.
 If SAVE is non-nil save, otherwise format candidate given action KEY."
@@ -1171,7 +1155,7 @@ Custom predicate for composing only inside LaTeX delimiters.
 #+begin_src emacs-lisp
 (defvar math-prettify--symbols-alist)
 
-(after! tex-mode
+(with-eval-after-load 'tex-mode
   (setq math-prettify--symbols-alist
           (append
            '(("\\left" . ?ʟ)
@@ -1194,7 +1178,8 @@ Custom predicate for composing only inside LaTeX delimiters.
               #'math-prettify--symbols-compose-p)
   (prettify-symbols-mode +1))
 
-(add-hook! (LaTeX-mode latex-mode org-mode) #'math-prettify-activate)
+(dolist (h '(LaTeX-mode-hook latex-mode-hook org-mode-hook))
+  (add-hook h #'math-prettify-activate))
 #+end_src
 
 ** Citar
@@ -1279,7 +1264,7 @@ Custom predicate for composing only inside LaTeX delimiters.
 (use-package aas
   :ensure nil
   :init
-  (add-hook! (latex-mode LaTeX-mode)
+  (add-hook 'LaTeX-mode-hook
     (defun +activate-aas-h ()
       (aas-mode +1)
       (aas-activate-keymap 'aas-math)))
@@ -1297,9 +1282,8 @@ Custom predicate for composing only inside LaTeX delimiters.
   (defun i-binop (str)
     (cmd! (insert (if (eq (char-before) 32) "" " ") str " ")))
 
-  (after! tempel
+  (with-eval-after-load 'tempel
     (add-to-list 'tempel-user-elements #'latex-brace-tempel-elt))
-
   
   (aas-set-snippets 'aas-math
     :cond (lambda () (eq (char-before) 32))
@@ -1568,12 +1552,12 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
 
 *** Skip 'SUBTREE'
 #+begin_src emacs-lisp
-(defadvice! org-cycle-internal-local-ad (f)
-  :around #'org-cycle-internal-local
-  (if (eq org-cycle-subtree-status 'children)
-      (let ((last-command nil))
-        (funcall f))
-    (funcall f)))
+(advice-add #'org-cycle-internal-local :around
+  (defun org-cycle-internal-local-ad (f)
+    (if (eq org-cycle-subtree-status 'children)
+        (let ((last-command nil))
+          (funcall f))
+      (funcall f))))
 #+end_src
 
 *** Appearance
@@ -1600,7 +1584,7 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
 
 ** LaTeX
 #+begin_src emacs-lisp
-(after! font-latex
+(with-eval-after-load 'font-latex
   (setopt font-latex-script-display '((raise -0.3) . (raise 0.4))
           font-latex-fontify-script 'multi-level))
 #+end_src
@@ -1629,7 +1613,7 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
 =lsp-mode=, for some weird reason, is /really/ lagging in LaTeX documents, while Eglot is not. This tends to annoy and distract me. Let's create a simple interface to Texlab features with Eglot.
 
 #+begin_src emacs-lisp
-(after! (eglot tex-mode)
+(with-eval-after-load 'eglot
   (setopt eglot-workspace-configuration
           (plist-put eglot-workspace-configuration
                      :texlab '(:build
@@ -1660,13 +1644,14 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
      :error-fn (lambda (r) (message "Error %s" r))
      :deferred t))
 
-  (modal-setmap LaTeX-mode-map mode-map
-                "a" #'eglot-texlab-build
-                "f" #'eglot-texlab-forward-search)
+  (with-eval-after-load 'latex
+    (modal-setmap LaTeX-mode-map mode-map
+                  "a" #'eglot-texlab-build
+                  "f" #'eglot-texlab-forward-search)
 
-  (setmap LaTeX-mode-map
-          "C-c C-a" #'eglot-texlab-build
-          "C-c C-f" #'eglot-texlab-forward-search))
+    (setmap LaTeX-mode-map
+            "C-c C-a" #'eglot-texlab-build
+            "C-c C-f" #'eglot-texlab-forward-search)))
 #+end_src
 
 ** Lean
@@ -1706,7 +1691,7 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
     :package-version '(lsp-mode . "8.0.1")
     :lsp-path "haskell.plugin.semanticTokens.globalOn"))
 
-(after! eglot
+(with-eval-after-load 'eglot
   (setopt eglot-workspace-configuration
           (plist-put eglot-workspace-configuration
                      :haskell '(:formattingProvider "fourmolu"))))
