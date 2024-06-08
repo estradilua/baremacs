@@ -180,7 +180,8 @@ This functionality allows binding many keys to TAB via a hook. The command will 
   (evil-define-key 'insert 'global
     (kbd "C-v") #'evil-paste-before
     (kbd "M-SPC") leader-map
-    (kbd "M-TAB") #'completion-at-point) 
+    (kbd "M-TAB") #'completion-at-point
+    (kbd "C-g") #'evil-normal-state)
   (evil-define-key '(normal emacs) 'global
     (kbd "SPC") leader-map
     (kbd "C-t") nil))
@@ -198,12 +199,11 @@ This functionality allows binding many keys to TAB via a hook. The command will 
   (evil-embrace-enable-evil-surround-integration))
 #+end_src
 
-*** Escape
+*** COMMENT Escape
 #+begin_src emacs-lisp
 (use-package evil-escape
   :after evil
   :init
-  (keymap-set evil-insert-state-map "C-g" #'evil-escape)
   (setopt evil-escape-key-sequence "jk")
   (evil-escape-mode))
 #+end_src
