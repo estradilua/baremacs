@@ -790,11 +790,20 @@ Add a hook after theme changes.
           flymake-popon-method 'posframe
           flymake-popon-diagnostic-formatter #'flymake-diagnostic-text))
 #+end_src
+*** Eldoc
+#+begin_src emacs-lisp
+(use-package eldoc
+  :ensure nil
+  :config
+  (setopt eldoc-echo-area-use-multiline-p nil))
+#+end_src
+
 *** Eldoc-box
 #+begin_src emacs-lisp
 (use-package eldoc-box
+  :after eldoc
   :custom-face 
-  (eldoc-box-body ((t (:height 1.0 :inherit (variable-pitch)))))
+  (eldoc-box-body ((t (:height 1.0 :weight normal :inherit (variable-pitch)))))
   (eldoc-box-border ((t (:background unspecified :inherit corfu-border))))
   (eldoc-box-markdown-separator
    ((t :height 0.5
@@ -802,6 +811,8 @@ Add a hook after theme changes.
        :strike-through unspecified
        :inherit shadow)))
   :config
+  (evil-define-key 'normal eglot-mode-map
+    "K" #'eldoc-box-help-at-point)
   (setopt eldoc-box-max-pixel-height 400)
   (setcdr (assoc 'internal-border-width eldoc-box-frame-parameters) 1)
   (setcdr (assoc 'left-fringe eldoc-box-frame-parameters)  10)
@@ -864,29 +875,8 @@ Add a hook after theme changes.
                    "?=" "/=" "/==" "/\\" "\\/" "__" "&&" "++" "+++")))
 #+end_src
 
-** COMMENT LSP-mode
+** Eglot
 #+begin_src emacs-lisp
-(use-package lsp-mode
-  :commands (lsp)
-  :config
-  (keymap-set code-map "l" lsp-command-map)
-  (setopt lsp-completion-provider :none
-          lsp-headerline-breadcrumb-enable nil
-          lsp-lens-enable nil))
-#+end_src
-
-*** Consult-LSP
-#+begin_src emacs-lisp 
-(use-package consult-lsp
-  :bind (:map lsp-command-map
-              ("x" . consult-lsp-diagnostics)
-              ("I" . consult-lsp-symbols)
-              ("i" . consult-lsp-file-symbols)))
-#+end_src
-
-** Eglot (updated)
-#+begin_src emacs-lisp
-(use-package eldoc)
 (use-package jsonrpc)
 
 (use-package eglot
@@ -895,7 +885,14 @@ Add a hook after theme changes.
           '("texlab"))
   (modal-setmap eglot-mode-map code-map
                 "a" #'eglot-code-actions
-                "f" #'consult-eglot-symbols))
+                "f" #'eglot-format
+                "I" #'consult-eglot-symbols))
+#+end_src
+
+*** Semtok
+#+begin_src emacs-lisp
+(use-package eglot-semantic-tokens
+  :ensure (:repo "https://codeberg.org/eownerdead/eglot-semantic-tokens.git"))
 #+end_src
 
 *** Consult integration
@@ -1709,7 +1706,19 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
 (use-package haskell-mode)
 #+end_src
 
-*** Lsp-mode
+*** Eglot
+#+begin_src emacs-lisp
+(with-eval-after-load 'eglot
+  (add-to-list 'eglot-server-programs '(haskell-cabal-mode "haskell-language-server-wrapper" "--lsp"))
+  
+  (setopt eglot-workspace-configuration
+          (plist-put eglot-workspace-configuration
+                     :haskell '(:cabalFormattingProvider "cabal-gild"
+                                :formattingProvider "fourmolu"
+                                :plugin (:semanticTokens (:globalOn t))))))
+#+end_src
+
+*** COMMENT Lsp-mode
 #+begin_src emacs-lisp
 (use-package lsp-haskell
   :after '(lsp-mode haskell-mode)
@@ -1728,12 +1737,6 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
     :group 'lsp-haskell-plugins
     :package-version '(lsp-mode . "8.0.1")
     :lsp-path "haskell.plugin.semanticTokens.globalOn"))
-
-(with-eval-after-load 'eglot
-  (setopt eglot-workspace-configuration
-          (plist-put eglot-workspace-configuration
-                     :haskell '(:formattingProvider "fourmolu"))))
-  
 #+end_src
 
 ** PDF
