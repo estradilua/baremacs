@@ -811,7 +811,7 @@ Add a hook after theme changes.
 (use-package eldoc-box
   :after eldoc
   :custom-face 
-  (eldoc-box-body ((t (:height 1.0 :inherit (variable-pitch)))))
+  (eldoc-box-body ((t (:height 1.0 :weight normal :inherit (variable-pitch)))))
   (eldoc-box-border ((t (:background unspecified :inherit corfu-border))))
   (eldoc-box-markdown-separator
    ((t :height 0.5
