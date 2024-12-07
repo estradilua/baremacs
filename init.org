@@ -978,7 +978,8 @@ Add a hook after theme changes.
         display-line-numbers-width-start t
         use-short-answers t
         ;; what the fuck, emacs!
-        sentence-end-double-space nil)
+        sentence-end-double-space nil
+        auth-sources `(,(expand-file-name "authinfo.gpg" user-emacs-directory)))
 
 (defun display-startup-echo-area-message ())
 #+end_src
