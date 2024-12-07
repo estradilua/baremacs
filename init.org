@@ -942,10 +942,16 @@ Add a hook after theme changes.
   (setopt eldoc-box-at-point-position-function #'eldoc-box-better-at-point-position-function))
 #+end_src
 
-** File templates (auto-insert)
-
+** File templates
+*** Auto-insert
 #+begin_src emacs-lisp
+(use-package auto-insert-mode
+  :ensure nil)
+#+end_src
 
+*** Gitignore
+#+begin_src emacs-lisp
+(use-package gitignore-templates)
 #+end_src
 
 ** Good scrolling
