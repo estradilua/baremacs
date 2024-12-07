@@ -2,13 +2,13 @@
 #+startup: content
 #+todo: ORGANIZE(o) TODO(t) | DONE (d)
 
-This Emacs config attemps to use the bundled libraries as much as possible, but only when it makes sense to do so. For about three years I used [[https://github.com/doomemacs/doomemacs][Doom Emacs]], which was great to introduce me to how Emacs works and its ecossystem, but after having a go at this vanilla configuration, I can assure you that you can build a config that works much better for you, is more stable and has more features than you ever could with Doom. Of couse, this requires work, but for me this was very much worth it.
+This Emacs config attempts to use the bundled libraries as much as possible, but only when it makes sense to do so. For about three years I used [[https://github.com/doomemacs/doomemacs][Doom Emacs]], which was great to introduce me to how Emacs works and its ecosystem, but after having a go at this vanilla configuration, I can assure you that you can build a config that works much better for you and is more stable. Of couse, this requires work, but for me this was very much worth it.
 
 Here is an overview of features:
 - Persistence across sessions via built-in ~savehist~ and ~desktop~ packages;
 - Project management via built-in ~project~, enhanced via ~project-tab-groups~ and ~tab-bar-echo-area~ to make it very much like ~perspective~ but way more stable and integrated;
 - ~evil~! The muscle memory is way too strong to give up on this one!
-- Everything Minad has gifted Earth:
+- Everything Minad has gifted us puny humans:
   - ~vertico~ completion interface, with ~marginalia~ annotations and ~nerd-icons~;
   - ~corfu~ completion-at-point interface, along with ~cape~ goodies;
   - ~tempel~, great template (snippets) system;
@@ -131,6 +131,23 @@ This is pretty much a hack but it is short and it works.
         "." #'find-file)
 #+end_src
 
+** Utility
+#+begin_src emacs-lisp
+(defun delete-file-and-buffer ()
+  "Kill the current buffer and deletes the file it is visiting."
+  (interactive)
+  (let ((filename (buffer-file-name)))
+    (if filename
+        (if (y-or-n-p (concat "Do you really want to delete file " filename " ?"))
+            (progn
+              (delete-file filename)
+              (message "Deleted file %s." filename)
+              (kill-buffer)))
+      (message "Not a file visiting buffer!"))))
+
+(setmap file-map "d" #'delete-file-and-buffer)
+#+end_src
+
 ** TAB hook
 This functionality allows binding many keys to TAB via a hook. The command will run all commands in the hook in order and stop at the first function that returns non-nil.
 
@@ -172,13 +189,13 @@ This functionality allows binding many keys to TAB via a hook. The command will 
          ("l" . evil-switch-to-windows-last-buffer))
   :init
   (setq evil-want-integration t
+        evil-ex-substitute-global t
         evil-lookup-func #'helpful-at-point
         evil-shift-round nil
         evil-cross-lines t
         evil-undo-system 'undo-redo
         evil-move-cursor-back nil
         evil-want-fine-undo t
-        evil-respect-visual-line-mode t
         evil-want-keybinding nil)
   (evil-mode 1)
   :config
@@ -223,6 +240,14 @@ This functionality allows binding many keys to TAB via a hook. The command will 
   :after evil
   :init
   (evil-collection-init))
+#+end_src
+
+*** Multiedit
+#+begin_src emacs-lisp
+(use-package evil-multiedit
+  :init
+  (require 'evil-multiedit)
+  (evil-multiedit-default-keybinds))
 #+end_src
 
 *** Surround
@@ -313,7 +338,7 @@ This functionality allows binding many keys to TAB via a hook. The command will 
   (defun +corfu-add-cape-dabbrev-h ()
     (add-hook 'completion-at-point-functions #'cape-dabbrev 20 t))
 
-  (dolist (h '(prog-mode-hook conf-mode-hook minibuffer-setup-hook))
+  (dolist (h '(prog-mode-hook conf-mode-hook))
     (add-hook h #'+corfu-add-cape-dabbrev-h))
 
   (defun +corfu-add-cape-dabbrev-dict-h ()
@@ -490,6 +515,7 @@ The ~cape-dabbrev~ backend does not handle casing very well; see my issue [[http
 *** Tempel
 #+begin_src emacs-lisp
 (use-package tempel
+  :ensure (:repo "git@github.com:lucasvreis/tempel.git")
   :bind (("M-+" . tempel-complete) ;; Alternative tempel-expand
          ("M-*" . tempel-insert))
   :init
@@ -523,6 +549,21 @@ The ~cape-dabbrev~ backend does not handle casing very well; see my issue [[http
 *** AAS
 #+begin_src emacs-lisp
 (use-package aas)
+#+end_src
+
+Some monkey patching to keep the order of hooks reasonable. Otherwise there is a huge mess with smartparens.
+#+begin_src emacs-lisp
+(with-eval-after-load 'aas
+  (define-minor-mode aas-mode
+    "Minor mode for dynamically auto-expanding snippets.
+
+This does not set any default keymaps. For that use
+`aas-activate-for-major-mode' and `aas-activate-keymap'."
+    :init-value nil
+    :group 'aas
+    (if aas-mode
+        (add-hook 'post-self-insert-hook #'aas-post-self-insert-hook 90 t)
+      (remove-hook 'post-self-insert-hook #'aas-post-self-insert-hook t))))
 #+end_src
 
 ** UIs
@@ -570,15 +611,19 @@ The ~cape-dabbrev~ backend does not handle casing very well; see my issue [[http
               ("S-<next>" . vertico-repeat-next))
   :hook (minibuffer-setup . vertico-repeat-save))
 #+end_src
-**** COMMENT Posframe
+
+**** Posframe
 #+begin_src emacs-lisp
-  (use-package vertico-posframe
-    :init
-    (vertico-posframe-mode 1)
-    :config
-    (setopt vertico-posframe-border-width 1)
-    ;; setopt is complaining
-    (setq vertico-posframe-parameters '((left-fringe . 8) (right-fringe . 8))))
+(use-package vertico-posframe
+  :init
+  (vertico-posframe-mode 1)
+  :config
+  (setopt vertico-posframe-border-width 1
+          ;; without this, the horizontal state gets messed up
+          ;; permanently if the minibuffer input is too long.
+          vertico-posframe-truncate-lines nil)
+  ;; setopt is complaining
+  (setq vertico-posframe-parameters '((left-fringe . 8) (right-fringe . 8))))
 #+end_src
 
 *** Corfu
@@ -592,7 +637,6 @@ The ~cape-dabbrev~ backend does not handle casing very well; see my issue [[http
       (setq-local corfu-echo-delay nil ;; Disable automatic echo and popup
                   corfu-popupinfo-delay nil)
       (corfu-mode 1)))
-  (add-hook 'minibuffer-setup-hook #'corfu-enable-in-minibuffer)
   (global-corfu-mode)
   :custom-face (corfu-default ((t (:inherit fixed-pitch))))
   :bind
@@ -609,6 +653,7 @@ The ~cape-dabbrev~ backend does not handle casing very well; see my issue [[http
           corfu-max-width 120
           corfu-on-exact-match 'insert
           corfu-preview-current 'insert
+          global-corfu-minibuffer t
           tab-always-indent t)
   (add-hook 'evil-insert-state-exit-hook #'corfu-quit)
   (add-to-list 'completion-category-overrides `(lsp-capf (styles ,@completion-styles))))
@@ -783,113 +828,16 @@ Add a hook after theme changes.
   (advice-add 'enable-theme :after #'run-after-enable-theme-hook))
 #+end_src
 
-** Errors, linting
-*** Flymake
-**** Popon
-#+begin_src emacs-lisp
-(use-package flymake-popon
-  :after flymake
-  :custom-face (flymake-popon ((t (:inherit corfu-popupinfo))))
-  :init
-  (global-flymake-popon-mode)
-  :config
-  (setopt flymake-popon-delay 0.8
-          flymake-popon-posframe-border-width 0
-          flymake-popon-method 'posframe
-          flymake-popon-diagnostic-formatter #'flymake-diagnostic-text))
-#+end_src
-*** Eldoc
-#+begin_src emacs-lisp
-(use-package eldoc
-  :ensure nil
-  :config
-  (setopt eldoc-echo-area-use-multiline-p nil))
-#+end_src
-
-*** Eldoc-box
-#+begin_src emacs-lisp
-(use-package eldoc-box
-  :after eldoc
-  :custom-face 
-  (eldoc-box-body ((t (:height 1.0 :weight normal :inherit (variable-pitch)))))
-  (eldoc-box-border ((t (:background unspecified :inherit corfu-border))))
-  (eldoc-box-markdown-separator
-   ((t :height 0.5
-       :underline (:color foreground-color :style wave :position nil)
-       :strike-through unspecified
-       :inherit shadow)))
-  :config
-  (evil-define-key 'normal eglot-mode-map
-    "K" #'eldoc-box-help-at-point)
-  (setopt eldoc-box-max-pixel-height 400)
-  (setcdr (assoc 'internal-border-width eldoc-box-frame-parameters) 1)
-  (setcdr (assoc 'left-fringe eldoc-box-frame-parameters)  10)
-  (setcdr (assoc 'right-fringe eldoc-box-frame-parameters) 10))
-#+end_src
-
-** Helpful
-#+begin_src emacs-lisp
-(use-package helpful
-  :bind (("C-h f" . #'helpful-callable)
-         ("C-h F" . #'helpful-function)
-         ("C-h v" . #'helpful-variable)
-         ("C-h k" . #'helpful-key)
-         ("C-h x" . #'helpful-command)
-         ("C-h '" . #'helpful-at-point)
-         ("C-h m" . #'helpful-macro)))
-#+end_src
-
-** Idiosyncrasy
-#+begin_src emacs-lisp
-(setopt indent-tabs-mode nil
-        inhibit-startup-screen t
-        scroll-conservatively 20
-        backup-inhibited t
-        ring-bell-function #'ignore
-        revert-without-query '(".")
-        use-short-answers t)
-
-(defun display-startup-echo-area-message ())
-#+end_src
-
-** Good scrolling
-#+begin_src emacs-lisp
-(pixel-scroll-precision-mode 1)
-(setopt pixel-scroll-precision-interpolation-factor 1.5)
-#+end_src
-
-** Screen cast
-#+begin_src emacs-lisp
-(use-package gif-screencast
-  :config
-  (setopt gif-screencast-program "grim"
-          gif-screencast-args '()))
-#+end_src
-
-** Ligatures
-#+begin_src emacs-lisp
-(use-package ligature
-  :init
-  (global-ligature-mode t)
-  :config
-  (ligature-set-ligatures
-   'haskell-mode '("</" "</>" "/>" "~-" "-~" "~@" "<~" "<~>" "<~~" "~>" "~~"
-                   "~~>" ">=" "<=" "<!--" "##" "###" "####" "|-" "-|" "|->"
-                   "<-|" ">-|" "|-<" "|=" "|=>" "<-" "<--" "-->" "->" "-<"
-                   ">->" ">>-" "<<-" "<->" "->>" "-<<" "<-<" "==>" "=>" "=/="
-                   "!==" "!=" "<==" ">>=" "=>>" ">=>" "<=>" "<=<" "<<=" "=<<"
-                   ".-" ".=" "=:=" "=!=" "==" "===" "::" ":=" 
-                   "<|" "<|>" "|>" "<>" "<$" "<$>" "$>" "<+" "<+>" "+>"
-                   "?=" "/=" "/==" "/\\" "\\/" "__" "&&" "++" "+++")))
-#+end_src
-
 ** Eglot
 #+begin_src emacs-lisp
 (use-package jsonrpc)
 
 (use-package eglot
+  :custom-face
+  (eglot-diagnostic-tag-unnecessary-face ((t (:inherit shadow))))
   :config
-  (setcdr (assoc '(tex-mode context-mode texinfo-mode bibtex-mode) eglot-server-programs)
+  (setcdr (assoc '(latex-mode plain-tex-mode context-mode texinfo-mode bibtex-mode tex-mode)
+                 eglot-server-programs)
           '("texlab"))
   (modal-setmap eglot-mode-map code-map
                 "a" #'eglot-code-actions
@@ -911,6 +859,135 @@ Add a hook after theme changes.
   :after eglot
   :init
   (consult-eglot-embark-mode 1))
+#+end_src
+
+*** Booster 🚀
+#+begin_src emacs-lisp
+(use-package eglot-booster
+  :ensure (:host github :repo "jdtsmith/eglot-booster")
+  :after eglot
+  :init
+  (eglot-booster-mode 1))
+#+end_src
+
+** Errors, linting
+*** Flymake
+**** Popon
+#+begin_src emacs-lisp
+(use-package flymake-popon
+  :after flymake
+  :custom-face (flymake-popon ((t (:inherit corfu-popupinfo))))
+  :init
+  (global-flymake-popon-mode)
+  :config
+  (setopt flymake-popon-delay 0.8
+          flymake-popon-posframe-border-width 0
+          flymake-popon-method 'posframe
+          flymake-popon-diagnostic-formatter #'flymake-diagnostic-text))
+#+end_src
+*** Eldoc
+#+begin_src emacs-lisp
+(use-package eldoc
+  :config
+  (setopt eldoc-echo-area-use-multiline-p nil))
+#+end_src
+
+*** Eldoc-box
+#+begin_src emacs-lisp
+(use-package eldoc-box
+  :after eldoc
+  :custom-face 
+  (eldoc-box-body ((t (:height 1.0 :weight normal :inherit (variable-pitch)))))
+  (eldoc-box-border ((t (:background unspecified :inherit corfu-border))))
+  (eldoc-box-markdown-separator
+   ((t :height 0.5
+       :underline (:color foreground-color :style wave :position nil)
+       :strike-through unspecified
+       :inherit shadow)))
+  :init
+  (with-eval-after-load 'eglot
+    (evil-define-key 'normal eglot-mode-map
+      "K" #'eldoc-box-help-at-point))
+  :config
+  (setopt eldoc-box-max-pixel-height 400)
+  (setcdr (assoc 'internal-border-width eldoc-box-frame-parameters) 1)
+  (setcdr (assoc 'left-fringe eldoc-box-frame-parameters)  10)
+  (setcdr (assoc 'right-fringe eldoc-box-frame-parameters) 10)
+
+  (defun eldoc-box-better-at-point-position-function (width height)
+    "See `eldoc-box--default-at-point-position-function' for WIDTH & HEIGHT docs."
+    (let* ((pos (posn-x-y (posn-at-point)))
+           (edge (window-inside-pixel-edges))
+           ;; calculate point coordinate relative to native frame
+           ;; because childframe coordinate is relative to native frame
+           (x (+ (car edge) (car pos)))
+           (y (+ (cadr edge) (window-tab-line-height) (cdr pos)))
+           (em (default-line-height)))
+      (cons (if (< (- (frame-inner-width) width) x)
+                ;; space on the right of the pos is not enough
+                ;; put to left
+                (max 0 (- x width))
+              ;; normal, just return x
+              x)
+            (if (< (- (frame-inner-height) height) y)
+                ;; space under the pos is not enough
+                ;; put above
+                (max 0 (- y height))
+              ;; normal, just return y + em
+              (+ y em)))))
+  (setopt eldoc-box-at-point-position-function #'eldoc-box-better-at-point-position-function))
+#+end_src
+
+** Good scrolling
+#+begin_src emacs-lisp
+(pixel-scroll-precision-mode 1)
+(setopt pixel-scroll-precision-interpolation-factor 1.5)
+#+end_src
+
+** Helpful
+#+begin_src emacs-lisp
+(use-package helpful
+  :bind (("C-h f" . #'helpful-callable)
+         ("C-h F" . #'helpful-function)
+         ("C-h v" . #'helpful-variable)
+         ("C-h k" . #'helpful-key)
+         ("C-h x" . #'helpful-command)
+         ("C-h '" . #'helpful-at-point)
+         ("C-h m" . #'helpful-macro)))
+#+end_src
+
+** Idiosyncrasy
+#+begin_src emacs-lisp
+(setopt indent-tabs-mode nil
+        inhibit-startup-screen t
+        frame-resize-pixelwise t
+        scroll-conservatively 20
+        backup-inhibited t
+        ring-bell-function #'ignore
+        revert-without-query '(".")
+        display-line-numbers-width-start t
+        use-short-answers t
+        ;; what the fuck, emacs!
+        sentence-end-double-space nil)
+
+(defun display-startup-echo-area-message ())
+#+end_src
+
+** Ligatures
+#+begin_src emacs-lisp
+(use-package ligature
+  :init
+  (global-ligature-mode t)
+  :config
+  (ligature-set-ligatures
+   'haskell-mode '("</" "</>" "/>" "~-" "-~" "~@" "<~" "<~>" "<~~" "~>" "~~"
+                   "~~>" ">=" "<=" "<!--" "##" "###" "####" "|-" "-|" "|->"
+                   "<-|" ">-|" "|-<" "|=" "|=>" "<-" "<--" "-->" "->" "-<"
+                   ">->" ">>-" "<<-" "<->" "->>" "-<<" "<-<" "==>" "=>" "=/="
+                   "!==" "!=" "<==" ">>=" "=>>" ">=>" "<=>" "<=<" "<<=" "=<<"
+                   ".-" ".=" "=:=" "=!=" "==" "===" "::" ":=" 
+                   "<|" "<|>" "|>" "<>" "<$" "<$>" "$>" "<+" "<+>" "+>"
+                   "?=" "/=" "/==" "/\\" "\\/" "__" "&&" "++" "+++")))
 #+end_src
 
 ** Magit
@@ -942,10 +1019,16 @@ Let's add some keys to it.
 
 *** Todos
 #+begin_src emacs-lisp
+(use-package hl-todo
+  :ensure (:tag "v3.7.0"))
+
 (use-package magit-todos
   :after magit
   :init
-  (magit-todos-mode 1))
+  (magit-todos-mode 1)
+  :config
+  (setopt magit-todos-exclude-globs
+          '(".git/" "**/elpaca/")))
 #+end_src
 
 ** Persistence
@@ -974,6 +1057,7 @@ Let's add some keys to it.
 
 ** Projects
 #+begin_src emacs-lisp
+(use-package xref)
 (use-package project
   :config
   (set-keymap-parent project-map project-prefix-map)
@@ -981,6 +1065,63 @@ Let's add some keys to it.
   (setopt project-switch-commands #'project-find-file
           project-prompter #'project-prompt-project-dir
           project-vc-extra-root-markers '("latexmkrc")))
+#+end_src
+
+** Recentf
+#+begin_src emacs-lisp
+(use-package recentf
+  :ensure nil
+  :hook (after-init . recentf-mode))
+#+end_src
+
+** Screen cast
+#+begin_src emacs-lisp
+(use-package gif-screencast
+  :config
+  (setopt gif-screencast-program "grim"
+          gif-screencast-args '()))
+#+end_src
+
+** Spelling (jinx)
+#+begin_src emacs-lisp
+(use-package jinx
+  :hook (text-mode conf-mode)
+  :config
+  (setq jinx-languages "pt_BR en_US")
+  (cl-pushnew 'font-lock-constant-face (cdr (assq 'tex-mode jinx-exclude-faces)))
+  (define-key evil-visual-state-map "z=" 'jinx-correct)
+  (define-key evil-normal-state-map "z=" 'jinx-correct))
+#+end_src
+
+Let's also add a dir-local saving option. 
+
+#+begin_src emacs-lisp
+(with-eval-after-load 'jinx
+  (defun jinx--save-dir (save key word)
+    "Save WORD in dir-local variable.
+If SAVE is non-nil save, otherwise format candidate given action KEY."
+    (if save
+        (progn
+          (add-to-list 'jinx--session-words word)
+          (setq jinx-local-words
+                (string-join
+                 (sort (delete-dups
+                        (cons word (split-string jinx-local-words)))
+                       #'string<)
+                 " "))
+          (modify-dir-local-variable major-mode 'jinx-local-words jinx-local-words 'add-or-replace)
+          (save-buffer)
+          (kill-buffer))
+      (list key word "Directory")))
+  (setopt jinx--save-keys (map-insert jinx--save-keys ?, #'jinx--save-dir)))
+#+end_src
+
+** Server
+#+begin_src emacs-lisp
+(use-package server
+  :ensure nil
+  :init
+  (server-start))
 #+end_src
 
 ** Tab groups
@@ -999,6 +1140,7 @@ Let's add some keys to it.
   (tab-bar-tab-group-inactive ((t (:box nil))))
   (tab-bar-tab-group-current ((t (:slant italic :weight normal :box nil))))
   :init
+  (tab-bar-mode 1)
   (cl-loop for i from 1 to 9 do
            (keymap-global-set (format "M-%s" i) `(lambda () (interactive) (tab-select ,i))))
   (tab-bar-history-mode 1) 
@@ -1025,7 +1167,10 @@ Let's add some keys to it.
 (use-package project-tab-groups
   :init
   (project-tab-groups-mode 1))
+#+end_src
 
+**** COMMENT Echo area tab bar
+#+begin_src emacs-lisp
 (use-package tab-bar-echo-area
   :init
   (tab-bar-echo-area-mode 1)
@@ -1063,45 +1208,9 @@ Let's add some keys to it.
 (add-to-list 'consult-project-buffer-sources 'consult--source-tab-local)
 #+end_src
 
-** Recentf
+** Terminal
 #+begin_src emacs-lisp
-(use-package recentf
-  :ensure nil
-  :hook (after-init . recentf-mode))
-#+end_src
-
-** Spelling (jinx)
-#+begin_src emacs-lisp
-(use-package jinx
-  :hook (text-mode conf-mode)
-  :config
-  (setq jinx-languages "pt_BR en_US")
-  (cl-pushnew 'font-lock-constant-face (cdr (assq 'tex-mode jinx-exclude-faces)))
-  (define-key evil-visual-state-map "z=" 'jinx-correct)
-  (define-key evil-normal-state-map "z=" 'jinx-correct))
-#+end_src
-
-Let's also add a dir-local saving option. 
-
-#+begin_src emacs-lisp
-(with-eval-after-load 'jinx
-  (defun jinx--save-dir (save key word)
-    "Save WORD in dir-local variable.
-If SAVE is non-nil save, otherwise format candidate given action KEY."
-    (if save
-        (progn
-          (add-to-list 'jinx--session-words word)
-          (setq jinx-local-words
-                (string-join
-                 (sort (delete-dups
-                        (cons word (split-string jinx-local-words)))
-                       #'string<)
-                 " "))
-          (modify-dir-local-variable major-mode 'jinx-local-words jinx-local-words 'add-or-replace)
-          (save-buffer)
-          (kill-buffer))
-      (list key word "Directory")))
-  (setopt jinx--save-keys (map-insert jinx--save-keys ?, #'jinx--save-dir)))
+(use-package eat)
 #+end_src
 
 ** Text wrapping
@@ -1111,6 +1220,17 @@ If SAVE is non-nil save, otherwise format candidate given action KEY."
 #+end_src
 
 ** Tree-sitter
+*** Builtin
+#+begin_src emacs-lisp
+(use-package treesit
+  :ensure nil
+  :config
+  (setopt treesit-language-source-alist
+          '((kdl "https://github.com/tree-sitter-grammars/tree-sitter-kdl.git")
+            (typescript "https://github.com/tree-sitter/tree-sitter-typescript.git" nil "typescript/src")
+            (tsx "https://github.com/tree-sitter/tree-sitter-typescript.git" nil "tsx/src"))))
+#+end_src
+*** External
 #+begin_src emacs-lisp
 (use-package tree-sitter)
 (use-package tree-sitter-langs)
@@ -1196,7 +1316,7 @@ If SAVE is non-nil save, otherwise format candidate given action KEY."
    (push (symbol-value name) local-abbrev-table))
   (abbrev-mode +1))
 
-(remove-hook 'LaTeX-mode-hook #'abbrev/setup)
+(add-hook 'LaTeX-mode-hook #'abbrev/setup)
 #+end_src
 
 *** Pretty concealed symbols
@@ -1265,10 +1385,19 @@ Custom predicate for composing only inside LaTeX delimiters.
 (use-package citar
   :config
   (setopt
-    citar-file-open-functions '(("pdf" . citar-file-open-external))
+   citar-file-open-functions '(("pdf" . citar-file-open-external)
+                               (t . citar-file-open-external))
     citar-bibliography '("/home/lucas/Zotero/bibs/all.bib")
     org-cite-csl-styles-dir "/home/lucas/Zotero/styles"
     citar-symbol-separator " "))
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package citar-embark
+  :after (citar embark)
+  :init
+  (citar-embark-mode +1))
+  
 #+end_src
 
 *** Boox attach
@@ -1348,7 +1477,7 @@ Custom predicate for composing only inside LaTeX delimiters.
   (defun latex-brace-tempel-elt (elt)
     (when (eq (car-safe elt) 'sb)
       (let ((var (or (nth 3 elt) 'sb-str)))
-        `(l (if (length> ,var 0) ,(nth 1 elt) "")
+        `(l ,(nth 1 elt)
             (if (length> ,var 1) "{" "")
             (p ,(nth 2 elt) ,var)
             (if (length> ,var 1) "}" "")))))
@@ -1386,7 +1515,7 @@ Custom predicate for composing only inside LaTeX delimiters.
     "em" (i-binop "\\in")
     "xx" (i-binop "\\times")
     "ss" (i-binop "\\subseteq")
-    "sps" (i-binop "\\superseteq")
+    "sps" (i-binop "\\supeteq")
     "ne" (i-binop "\\ne")
     "le" (i-binop "\\le")
     "ge" (i-binop "\\ge")
@@ -1458,7 +1587,6 @@ Custom predicate for composing only inside LaTeX delimiters.
 ** Denote and friends
 #+begin_src emacs-lisp
 (use-package denote)
-(use-package citar-denote)
 (use-package denote-explore)
 (use-package denote-refs)
 (use-package consult-denote
@@ -1466,6 +1594,14 @@ Custom predicate for composing only inside LaTeX delimiters.
   :init
   (consult-denote-mode 1))
 (use-package denote-menu)
+#+end_src
+
+**** Citar-denote
+#+begin_src emacs-lisp
+(use-package citar-denote
+  :after denote
+  :init
+  (citar-denote-mode 1))
 #+end_src
 
 ** Mixed-pitch
@@ -1491,8 +1627,8 @@ Custom predicate for composing only inside LaTeX delimiters.
 ** Fonts and faces
 #+begin_src emacs-lisp
 (custom-set-faces
- '(default ((t (:weight medium :height 125 :family "Victor Mono"))))
- '(fixed-pitch ((t (:family "Victor Mono"))))
+ '(default ((t (:weight medium :height 130 :family "Victor Mono"))))
+ '(fixed-pitch ((t (:weight medium :family "Victor Mono"))))
  '(variable-pitch ((t (:weight normal :family "IBM Plex Sans"))))
  '(ef-themes-ui-variable-pitch ((t (:inherit variable-pitch)))))
 #+end_src
@@ -1521,7 +1657,7 @@ Custom predicate for composing only inside LaTeX delimiters.
 *** Olivetti
 #+begin_src emacs-lisp
 (use-package olivetti
-  :hook (text-mode . olivetti-mode)
+  :hook ((text-mode prog-mode) . olivetti-mode)
   :commands olivetti-mode
   :bind (:map toggle-map ("e" . olivetti-mode))
   :config
@@ -1555,6 +1691,7 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
           modus-themes-org-blocks 'tinted-background
           modus-themes-tabs-accented t
           modus-themes-variable-pitch-ui t
+          modus-themes-mixed-fonts t
           modus-themes-mode-line '(accented borderless)))
 #+end_src
 
@@ -1614,6 +1751,13 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
 
 #+end_src
 
+*** MLScroll
+#+begin_src emacs-lisp
+(use-package mlscroll
+  :init
+  (mlscroll-mode +1))
+#+end_src
+
 ** Treemacs
 #+begin_src emacs-lisp
 (use-package treemacs
@@ -1657,52 +1801,6 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
 #+end_src
 
 * Languages
-** Org
-#+begin_src emacs-lisp
-(use-package org
-  :mode ("\\.org\\'" . org-mode)
-  :commands (org-mode)
-  :config
-  (modal-setmap org-mode-map mode-map
-                "." #'consult-org-heading
-                "i" #'consult-org-heading
-                "s p" #'org-paste-subtree
-                "s y" #'org-copy-subtree
-                "s d" #'org-cut-subtree
-                "s a" #'org-archive-subtree)
-  (evil-define-key 'normal org-mode-map "\\" #'org-edit-special)
-  (evil-define-minor-mode-key 'normal 'org-src-mode "\\" #'org-edit-src-exit)
-  (setopt org-indent-indentation-per-level 1
-          org-src-window-setup 'split-window-below
-          org-directory "~/dados/org"
-          org-fold-core-style 'text-properties
-          org-startup-indented t
-          org-support-shift-select t
-          org-insert-heading-respect-content t
-          org-hide-leading-stars t
-          org-highlight-latex-and-related '(latex script)
-          org-src-preserve-indentation t))
-#+end_src
-
-*** Skip 'SUBTREE'
-#+begin_src emacs-lisp
-(advice-add #'org-cycle-internal-local :around
-  (defun org-cycle-internal-local-ad (f)
-    (if (eq org-cycle-subtree-status 'children)
-        (let ((last-command nil))
-          (funcall f))
-      (funcall f))))
-#+end_src
-
-*** Appearance
-#+begin_src emacs-lisp
-(use-package org-superstar
-  :after (org)
-  :hook (org-mode . org-superstar-mode)
-  :config
-  (setq org-superstar-headline-bullets-list '(?◆ ?❉ ?🞱 ?🞽 ?✺)))
-#+end_src
-
 ** Elisp
 *** Parinfer
 #+begin_src emacs-lisp
@@ -1715,6 +1813,65 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
 (use-package highlight-defined
   :custom-face (highlight-defined-face-name-face ((t (:inherit nil))))
   :hook (emacs-lisp-mode . highlight-defined-mode))
+#+end_src
+
+** Haskell
+#+begin_src emacs-lisp
+(use-package haskell-mode)
+#+end_src
+
+*** Eglot
+#+begin_src emacs-lisp
+(with-eval-after-load 'eglot
+  (add-to-list 'eglot-server-programs '(haskell-cabal-mode "haskell-language-server-wrapper" "--lsp"))
+  
+  (setopt eglot-workspace-configuration
+          (plist-put eglot-workspace-configuration
+                     :haskell '(:cabalFormattingProvider "cabal-gild"
+                                :formattingProvider "fourmolu"
+                                :plugin (:semanticTokens (:globalOn t))))))
+#+end_src
+
+*** COMMENT Lsp-mode
+#+begin_src emacs-lisp
+(use-package lsp-haskell
+  :after '(lsp-mode haskell-mode)
+  :config
+  (setopt lsp-haskell-server-path "haskell-language-server-wrapper"
+          lsp-haskell-formatting-provider "fourmolu"
+          lsp-haskell-plugin-eval-global-on t
+          lsp-haskell-plugin-class-global-on nil
+          lsp-haskell-plugin-ghcide-type-lenses-global-on t
+          lsp-haskell-plugin-ghcide-completions-config-auto-extend-on t
+          lsp-haskell-plugin-import-lens-code-lens-on nil
+          lsp-haskell-plugin-import-lens-code-actions-on t)
+  (lsp-defcustom lsp-haskell-plugin-semantic-tokens t
+    "Enables semtok"
+    :type 'boolean
+    :group 'lsp-haskell-plugins
+    :package-version '(lsp-mode . "8.0.1")
+    :lsp-path "haskell.plugin.semanticTokens.globalOn"))
+#+end_src
+
+** Julia
+#+begin_src emacs-lisp
+(use-package julia-snail
+  :custom
+  (julia-snail-terminal-type :eat)
+  (julia-indent-offset 2)
+  :hook
+  (julia-mode . julia-snail-mode))
+#+end_src
+
+** KDL
+#+begin_src emacs-lisp
+(use-package kdl-ts-mode
+  :ensure (:repo "https://github.com/dataphract/kdl-ts-mode.git" :main "kdl-ts-mode.el"))
+#+end_src
+
+** HTMl
+#+begin_src emacs-lisp
+(use-package web-mode)
 #+end_src
 
 ** LaTeX
@@ -1734,6 +1891,7 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
                               ("./configure"
                                "--with-texmf-dir=$(dirname $(kpsexpand '$TEXMFHOME'))")
                               ("make")))
+  :hook ((LaTeX-mode org-mode) . LaTeX-math-mode)
   :mode ("\\.tex\\'" . LaTeX-mode))
 
 (with-eval-after-load 'tex
@@ -1760,6 +1918,7 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
 #+begin_src emacs-lisp
 (use-package latex
   :ensure nil
+  :hook (LaTeX-mode . eglot-ensure)
   :config
   (setopt LaTeX-flymake-chktex-options '("-n1" "-n3"))
   (add-hook 'LaTeX-mode-hook
@@ -1815,47 +1974,157 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
                       :files ("*.el" "data")))
 #+end_src
 
-** YAML
+** Markdown
 #+begin_src emacs-lisp
-(use-package yaml-mode)
+(use-package markdown-mode)
 #+end_src
 
-** Haskell
+** Org
 #+begin_src emacs-lisp
-(use-package haskell-mode)
-#+end_src
-
-*** Eglot
-#+begin_src emacs-lisp
-(with-eval-after-load 'eglot
-  (add-to-list 'eglot-server-programs '(haskell-cabal-mode "haskell-language-server-wrapper" "--lsp"))
-  
-  (setopt eglot-workspace-configuration
-          (plist-put eglot-workspace-configuration
-                     :haskell '(:cabalFormattingProvider "cabal-gild"
-                                :formattingProvider "fourmolu"
-                                :plugin (:semanticTokens (:globalOn t))))))
-#+end_src
-
-*** COMMENT Lsp-mode
-#+begin_src emacs-lisp
-(use-package lsp-haskell
-  :after '(lsp-mode haskell-mode)
+(use-package org
+  :ensure (:ref "f398724bd53eb6af3cf4187c864ec6f89a22ef59"
+                :host github
+                :repo "emacs-straight/org-mode")
+  :mode ("\\.org\\'" . org-mode)
+  :commands (org-mode)
   :config
-  (setopt lsp-haskell-server-path "haskell-language-server-wrapper"
-          lsp-haskell-formatting-provider "fourmolu"
-          lsp-haskell-plugin-eval-global-on t
-          lsp-haskell-plugin-class-global-on nil
-          lsp-haskell-plugin-ghcide-type-lenses-global-on t
-          lsp-haskell-plugin-ghcide-completions-config-auto-extend-on t
-          lsp-haskell-plugin-import-lens-code-lens-on nil
-          lsp-haskell-plugin-import-lens-code-actions-on t)
-  (lsp-defcustom lsp-haskell-plugin-semantic-tokens t
-    "Enables semtok"
-    :type 'boolean
-    :group 'lsp-haskell-plugins
-    :package-version '(lsp-mode . "8.0.1")
-    :lsp-path "haskell.plugin.semanticTokens.globalOn"))
+  (modal-setmap org-mode-map mode-map
+                "." #'consult-org-heading
+                "i" #'consult-org-heading
+                "s p" #'org-paste-subtree
+                "s y" #'org-copy-subtree
+                "s d" #'org-cut-subtree
+                "s a" #'org-archive-subtree
+                "l s" #'org-store-link)
+  (evil-define-key 'normal org-mode-map "\\" #'org-edit-special)
+  (evil-define-minor-mode-key 'normal 'org-src-mode "\\" #'org-edit-src-exit)
+  (setopt org-indent-indentation-per-level 1
+          org-src-window-setup 'split-window-below
+          org-directory "~/dados/org"
+          org-fold-core-style 'text-properties
+          org-startup-indented t
+          org-support-shift-select t
+          org-insert-heading-respect-content t
+          org-hide-leading-stars t
+          org-id-method 'ts
+          org-src-lang-modes (cl-pushnew '("latex" . LaTeX) org-src-lang-modes)
+          org-highlight-latex-and-related '(native latex script)
+          org-src-preserve-indentation t)
+
+  (setq org-attach-auto-tag nil
+        org-attach-id-to-path-function-list
+        '(org-attach-id-ts-folder-format org-attach-id-uuid-folder-format identity)))
+#+end_src
+
+*** Skip 'SUBTREE'
+#+begin_src emacs-lisp
+(advice-add #'org-cycle-internal-local :around
+  (defun org-cycle-internal-local-ad (f)
+    (if (eq org-cycle-subtree-status 'children)
+        (let ((last-command nil))
+          (funcall f))
+      (funcall f))))
+#+end_src
+
+*** Appearance
+#+begin_src emacs-lisp
+(use-package org-superstar
+  :after (org)
+  :hook (org-mode . org-superstar-mode)
+  :config
+  (setq org-superstar-headline-bullets-list '(?◆ ?❉ ?🞱 ?🞽 ?✺)))
+#+end_src
+
+*** Roam
+#+begin_src emacs-lisp
+(use-package org-roam
+  :custom
+  (org-roam-directory (file-truename "/home/lucas/dados/notas/"))
+  (org-roam-capture-templates
+   '(("d" "default" plain "%?"
+           :target (file+head "%<%Y%m%d%H%M%S>.org" "#+title: ${title}
+,#+language: pt
+")
+           :unnarrowed t
+          ("m" "math" plain "%?"
+           :target (file+head "math/%<%Y%m%d%H%M%S>.org" "#+title: ${title}
+,#+language: pt
+")
+           :unnarrowed t))))
+  (org-roam-capture-ref-templates
+   '(("m" "math" plain "%?"
+        :target (file+head "math/%<%Y%m%d%H%M%S>.org" "#+title: ${title}\n\n${body}")
+        :unnarrowed t)
+     ("fr" "Add to my future-read list" entry "* ${title}\n%?"
+      :target (file+olp "to-read.org" ("${title}"))
+      :empty-lines-before 1 nil nil)
+     ("r" "ref" plain "%?" :target
+      (file+head "${slug}.org" "#+title: ${title}")
+      :unnarrowed t)))
+  :bind (("C-c n l" . org-roam-buffer-toggle)
+         ("C-c n f" . org-roam-node-find)
+         ("C-c n g" . org-roam-graph)
+         ("C-c n i" . org-roam-node-insert)
+         ("C-c n c" . org-roam-capture)
+         ;; Dailies
+         ("C-c n j" . org-roam-dailies-capture-today))
+  :config
+  ;; If you're using a vertical completion framework, you might want a more informative completion interface
+  (setq org-roam-node-display-template (concat "${title:*} " (propertize "${tags:10}" 'face 'org-tag)))
+  (org-roam-db-autosync-mode)
+  ;; If using org-roam-protocol
+  (require 'org-roam-protocol))
+#+end_src
+*** Organon
+
+#+begin_src emacs-lisp
+(define-minor-mode organon-follow-mode
+  "Set whether organon should follow your every move in Emacs."
+  :lighter " organon"
+  :global t
+  :group 'organon
+  :init-value nil
+  (if organon-follow-mode
+      (progn
+        (add-hook 'post-command-hook #'organon--update-position)
+        (message "organon will now follow you around."))
+    (remove-hook 'post-command-hook #'organon--update-position)
+    (message "organon will now leave you alone.")))
+
+(defvar organon--last-pos nil)
+(defvar organon--conn nil)
+
+(defun organon--connect ()
+  (require 'websocket)
+  (unless organon--conn
+    (websocket-open
+     "ws://127.0.0.1:9160"
+     :on-open (lambda (ws) (message "organon: connected") (setq organon--conn ws))
+     :on-close (lambda (ws) (message "organon: disconnected") (setq organon--conn nil)))))
+
+(defun organon--get-info ()
+  (list :id (org-entry-get nil "ID" t)
+        :file (buffer-file-name)
+        :anchor (or (org-entry-get nil "CUSTOM_ID")
+                    (condition-case nil
+                        (let ((str (or (nth 4 (org-heading-components)) "")))
+                          (string-match "[^[:alpha:]]*\\(.*\\)" str)
+                          (substring str (match-beginning 1)))
+                      (user-error nil)))))
+
+(defun organon--update-position ()
+  (when-let ((_ (eq major-mode 'org-mode))
+             (cur-pos (organon--get-info))
+             (_ (not (equal cur-pos organon--last-pos))))
+    (setq organon--last-pos cur-pos)
+    (send-to-organon)))
+
+(defun send-to-organon ()
+  (interactive)
+  (organon--connect)
+  (when organon--conn
+    (let ((cur-info (organon--get-info)))
+      (websocket-send-text organon--conn (json-encode cur-info)))))
 #+end_src
 
 ** PDF
@@ -1868,5 +2137,10 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
             (defun pdf-evil-disable-cursor ()
               (set (make-local-variable 'evil-normal-state-cursor) (list nil))))
   (advice-add 'pdf-view-enlarge :after (lambda (_) (pdf-view-center-in-window))))
+#+end_src
+
+** YAML
+#+begin_src emacs-lisp
+(use-package yaml-mode)
 #+end_src
 
