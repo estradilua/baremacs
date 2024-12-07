@@ -1041,6 +1041,11 @@ Let's add some keys to it.
           '(".git/" "**/elpaca/")))
 #+end_src
 
+*** Forge
+#+begin_src emacs-lisp
+(use-package forge)
+#+end_src
+
 ** Persistence
 *** Savehist
 #+begin_src emacs-lisp
