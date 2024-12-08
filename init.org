@@ -22,7 +22,6 @@ Here is an overview of features:
 #+end_src
 
 #+begin_src emacs-lisp
-(setopt warning-suppress-types '((elpaca core stale 29.3.50)))
 (load (expand-file-name "elpaca-init" user-emacs-directory))
 #+end_src
 
@@ -158,7 +157,7 @@ This functionality allows binding many keys to TAB via a hook. The command will 
 (defun run-tab-actions ()
   (interactive)
   (cl-dolist (action tab-actions)
-    (when-let ((res (call-interactively action)))
+    (when-let* ((res (call-interactively action)))
       (cl-return res))))
 
 (global-set-key (kbd "TAB") #'run-tab-actions)
@@ -1276,7 +1275,7 @@ If SAVE is non-nil save, otherwise format candidate given action KEY."
 
 (defun abbrev/set-math-text-lang ()
   (interactive)
-  (when-let ((key (car (org-collect-keywords '("language")))))
+  (when-let* ((key (car (org-collect-keywords '("language")))))
     (setq abbrev/math-text-lang (make-symbol (cadr key)))))
 
 (defun abbrev/math-text-pt-p () (and (not (texmathp)) (string= abbrev/math-text-lang 'pt)))
@@ -1434,7 +1433,7 @@ Custom predicate for composing only inside LaTeX delimiters.
 (defun boox/copy-and-process (basename callback)
   (let ((fp "/adb:8A3DF2BF:storage/self/primary/note/export/export.pdf"))
     (when (file-readable-p fp)
-        (when-let ((tmpdir (make-temp-file "boox-export" t))
+        (when-let* ((tmpdir (make-temp-file "boox-export" t))
                    (tmpin (concat tmpdir "/in.pdf"))
                    (tmpout (format "%s/%s.png" tmpdir basename)))
           (copy-file fp tmpin)
@@ -1484,7 +1483,7 @@ Custom predicate for composing only inside LaTeX delimiters.
 
 (defun boox/attach-last-figure-adb (basename)
   (interactive "sName: ")
-  (if-let ((handler (alist-get major-mode boox/handlers)))
+  (if-let* ((handler (alist-get major-mode boox/handlers)))
       (boox/copy-and-process basename handler)
     (message "No handlers available for mode.")))
 #+end_src
@@ -2139,7 +2138,7 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
                       (user-error nil)))))
 
 (defun organon--update-position ()
-  (when-let ((_ (eq major-mode 'org-mode))
+  (when-let* ((_ (eq major-mode 'org-mode))
              (cur-pos (organon--get-info))
              (_ (not (equal cur-pos organon--last-pos))))
     (setq organon--last-pos cur-pos)
