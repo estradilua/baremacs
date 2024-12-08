@@ -827,6 +827,20 @@ Add a hook after theme changes.
     (run-hooks 'after-enable-theme-hook))
   (advice-add 'enable-theme :after #'run-after-enable-theme-hook))
 #+end_src
+** Buffer management
+*** IBuffer
+Let's group by projects using a handy package.
+
+#+begin_src emacs-lisp
+(use-package ibuffer-project
+  :init
+  (add-hook
+    'ibuffer-hook
+    (lambda ()
+      (setq ibuffer-filter-groups (ibuffer-project-generate-filter-groups))
+      (unless (eq ibuffer-sorting-mode 'project-file-relative)
+        (ibuffer-do-sort-by-project-file-relative)))))
+#+end_src
 
 ** Eglot
 #+begin_src emacs-lisp
