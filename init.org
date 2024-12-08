@@ -1092,8 +1092,6 @@ Let's add some keys to it.
 
 ** Projects
 #+begin_src emacs-lisp
-(use-package xref
-  :ensure nil)
 (use-package project
   :ensure nil
   :config
@@ -1158,7 +1156,7 @@ If SAVE is non-nil save, otherwise format candidate given action KEY."
 (use-package server
   :ensure nil
   :init
-  (server-start))
+  (server-start t t))
 #+end_src
 
 ** Tab groups
@@ -1928,13 +1926,12 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
 
 *** AucTeX
 #+begin_src emacs-lisp
-(use-package auctex
+(use-package tex
   :ensure (auctex :pre-build (("./autogen.sh")
                               ("./configure"
                                "--with-texmf-dir=$(dirname $(kpsexpand '$TEXMFHOME'))")
                               ("make")))
-  :hook ((LaTeX-mode org-mode) . LaTeX-math-mode)
-  :mode ("\\.tex\\'" . LaTeX-mode))
+  :hook ((LaTeX-mode org-mode) . (lambda () (require 'latex) (LaTeX-math-mode))))
 
 (with-eval-after-load 'tex
   (setopt TeX-parse-self t
@@ -2055,65 +2052,6 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
         '(org-attach-id-ts-folder-format org-attach-id-uuid-folder-format identity)))
 #+end_src
 
-*** Skip 'SUBTREE'
-#+begin_src emacs-lisp
-(advice-add #'org-cycle-internal-local :around
-  (defun org-cycle-internal-local-ad (f)
-    (if (eq org-cycle-subtree-status 'children)
-        (let ((last-command nil))
-          (funcall f))
-      (funcall f))))
-#+end_src
-
-*** Appearance
-#+begin_src emacs-lisp
-(use-package org-superstar
-  :after (org)
-  :hook (org-mode . org-superstar-mode)
-  :config
-  (setq org-superstar-headline-bullets-list '(?◆ ?❉ ?🞱 ?🞽 ?✺)))
-#+end_src
-
-*** Roam
-#+begin_src emacs-lisp
-(use-package org-roam
-  :custom
-  (org-roam-directory (file-truename "/home/lucas/dados/notas/"))
-  (org-roam-capture-templates
-   '(("d" "default" plain "%?"
-           :target (file+head "%<%Y%m%d%H%M%S>.org" "#+title: ${title}
-,#+language: pt
-")
-           :unnarrowed t
-          ("m" "math" plain "%?"
-           :target (file+head "math/%<%Y%m%d%H%M%S>.org" "#+title: ${title}
-,#+language: pt
-")
-           :unnarrowed t))))
-  (org-roam-capture-ref-templates
-   '(("m" "math" plain "%?"
-        :target (file+head "math/%<%Y%m%d%H%M%S>.org" "#+title: ${title}\n\n${body}")
-        :unnarrowed t)
-     ("fr" "Add to my future-read list" entry "* ${title}\n%?"
-      :target (file+olp "to-read.org" ("${title}"))
-      :empty-lines-before 1 nil nil)
-     ("r" "ref" plain "%?" :target
-      (file+head "${slug}.org" "#+title: ${title}")
-      :unnarrowed t)))
-  :bind (("C-c n l" . org-roam-buffer-toggle)
-         ("C-c n f" . org-roam-node-find)
-         ("C-c n g" . org-roam-graph)
-         ("C-c n i" . org-roam-node-insert)
-         ("C-c n c" . org-roam-capture)
-         ;; Dailies
-         ("C-c n j" . org-roam-dailies-capture-today))
-  :config
-  ;; If you're using a vertical completion framework, you might want a more informative completion interface
-  (setq org-roam-node-display-template (concat "${title:*} " (propertize "${tags:10}" 'face 'org-tag)))
-  (org-roam-db-autosync-mode)
-  ;; If using org-roam-protocol
-  (require 'org-roam-protocol))
-#+end_src
 *** Organon
 
 #+begin_src emacs-lisp
