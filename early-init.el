@@ -1,19 +1,15 @@
 ;; Example Elpaca early-init.el -*- lexical-binding: t; -*-
 
 (setq package-enable-at-startup nil)
-
-;; Tangle the file if needed
-(let* ((default-directory user-emacs-directory)
-       (org-file "init.org")
-       (el-file "init.el"))
+   
+;; Tangle the init file if needed
+(let* ((org-file (expand-file-name "init.org" user-emacs-directory))
+       (el-file (expand-file-name "init.el" user-emacs-directory)))
   (when (file-newer-than-file-p org-file el-file)
+    (message "Org init file being tangled!")
     (require 'ob-tangle)
     (org-babel-tangle-file org-file el-file "elisp\\|emacs-lisp")
-    (dolist (feat features)
-      (let ((sn (symbol-name feat)))
-        (when (or (string-match-p "^\\(org\\|ob\\|ol\\|oc\\)-" sn)
-                  (member sn '("ol" "oc" "orgstrap" "org")))
-          (unload-feature feat t))))))
+    (restart-emacs)))
 
 ;; The texlab language server is broken without this!!!
 (setenv "LSP_USE_PLISTS" "true")
