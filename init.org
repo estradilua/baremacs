@@ -301,7 +301,6 @@ This functionality allows binding many keys to TAB via a hook. The command will 
          ("c k" . cape-keyword)
          ("c s" . cape-symbol)
          ("c a" . cape-abbrev)
-         ("c i" . cape-ispell)
          ("c l" . cape-line)
          ("c w" . cape-dict)
          ("c \\" . cape-tex)
@@ -309,6 +308,10 @@ This functionality allows binding many keys to TAB via a hook. The command will 
          ("c r" . cape-rfc1345))
   :config
   (setopt cape-dabbrev-min-length 3
+          cape-dict-file
+          (mapcar (lambda (s)
+                    (expand-file-name (format "dicts/%s" s) user-emacs-directory))
+                  '("en-small" "pt-br-small"))
           dabbrev-case-fold-search t
           cape-dabbrev-check-other-buffers nil)
   :init
@@ -647,9 +650,9 @@ This does not set any default keymaps. For that use
   :config
   (setopt corfu-cycle t
           corfu-auto t
-          corfu-auto-prefix 3
+          corfu-auto-prefix 4
           corfu-count 16
-          corfu-auto-delay 0.18
+          corfu-auto-delay 0.1
           corfu-preselect 'valid
           corfu-max-width 120
           corfu-on-exact-match 'insert
@@ -1157,6 +1160,7 @@ If SAVE is non-nil save, otherwise format candidate given action KEY."
 (use-package server
   :ensure nil
   :init
+  (server-force-delete)
   (server-start t t))
 #+end_src
 
@@ -1424,13 +1428,13 @@ Custom predicate for composing only inside LaTeX delimiters.
 *** Citar
 #+begin_src emacs-lisp
 (use-package citar
+  :bind (:map LaTeX-mode-map ("C-c @" . citar-insert-citation))
   :config
-  (setopt
-   citar-file-open-functions '(("pdf" . citar-file-open-external)
-                               (t . citar-file-open-external))
-    citar-bibliography '("/home/lucas/Zotero/bibs/all.bib")
-    org-cite-csl-styles-dir "/home/lucas/Zotero/styles"
-    citar-symbol-separator " "))
+  (setopt citar-file-open-functions '(("pdf" . citar-file-open-external)
+                                      (t . citar-file-open-external))
+          citar-bibliography '("/home/lucas/Zotero/bibs/all.bib")
+          org-cite-csl-styles-dir "/home/lucas/Zotero/styles"
+          citar-symbol-separator " "))
 #+end_src
 
 #+begin_src emacs-lisp
@@ -1668,7 +1672,7 @@ Custom predicate for composing only inside LaTeX delimiters.
 ** Fonts and faces
 #+begin_src emacs-lisp
 (custom-set-faces
- '(default ((t (:weight medium :height 145 :family "Victor Mono"))))
+ '(default ((t (:weight medium :height 155 :family "Victor Mono"))))
  '(fixed-pitch ((t (:family "Victor Mono"))))
  '(variable-pitch ((t (:weight normal :family "IBM Plex Sans"))))
  '(ef-themes-ui-variable-pitch ((t (:inherit variable-pitch)))))
@@ -1728,11 +1732,14 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
   (modus-themes-tab-active ((t (:box nil))))
   (modus-themes-tab-inactive ((t (:box nil))))
   :config
-  (setopt modus-themes-fringes nil
-          modus-themes-org-blocks 'tinted-background
-          modus-themes-tabs-accented t
+  (setopt modus-themes-tabs-accented t
           modus-themes-variable-pitch-ui t
           modus-themes-mixed-fonts t
+          modus-themes-common-palette-overrides
+          '((fringe nil)
+            (bg-prose-block-contents bg-yellow-nuanced)
+            (bg-prose-block-delimiter bg-ochre)
+            (fg-prose-block-delimiter yellow-cooler))
           modus-themes-mode-line '(accented borderless)))
 #+end_src
 
@@ -1908,6 +1915,12 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
 #+begin_src emacs-lisp
 (use-package kdl-ts-mode
   :ensure (:repo "https://github.com/dataphract/kdl-ts-mode.git" :main "kdl-ts-mode.el"))
+#+end_src
+
+** Textual modes
+#+begin_src emacs-lisp
+(with-eval-after-load 'text-mode
+  (setopt text-mode-ispell-word-completion nil))
 #+end_src
 
 ** HTMl
