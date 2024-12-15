@@ -1396,7 +1396,7 @@ Custom predicate for composing only inside LaTeX delimiters.
 #+end_src
 
 #+begin_src emacs-lisp
-(defvar math-prettify--symbols-alist)
+(defvar math-prettify--symbols-alist nil)
 
 (with-eval-after-load 'tex-mode
   (setq math-prettify--symbols-alist
@@ -1731,16 +1731,16 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
   :custom-face
   (modus-themes-tab-active ((t (:box nil))))
   (modus-themes-tab-inactive ((t (:box nil))))
-  :config
-  (setopt modus-themes-tabs-accented t
-          modus-themes-variable-pitch-ui t
-          modus-themes-mixed-fonts t
-          modus-themes-common-palette-overrides
-          '((fringe nil)
-            (bg-prose-block-contents bg-yellow-nuanced)
-            (bg-prose-block-delimiter bg-ochre)
-            (fg-prose-block-delimiter yellow-cooler))
-          modus-themes-mode-line '(accented borderless)))
+  :custom
+  (modus-themes-tabs-accented t)
+  (modus-themes-variable-pitch-ui t)
+  (modus-themes-mixed-fonts t)
+  (modus-themes-common-palette-overrides
+   '((fringe nil)
+     (bg-prose-block-contents bg-yellow-nuanced)
+     (bg-prose-block-delimiter bg-ochre)
+     (fg-prose-block-delimiter yellow-cooler)))
+  (modus-themes-mode-line '(accented borderless)))
 #+end_src
 
 ** Modeline
