@@ -200,6 +200,8 @@ This functionality allows binding many keys to TAB via a hook. The command will 
   (evil-mode 1)
   :config
   (set-keymap-parent window-map evil-window-map)
+  (evil-define-key '(normal visual) 'global
+    (kbd "g s s") #'evil-avy-goto-char-2)
   (evil-define-key 'motion text-mode-map
     "j" #'evil-next-visual-line
     "k" #'evil-previous-visual-line)
@@ -1164,6 +1166,16 @@ If SAVE is non-nil save, otherwise format candidate given action KEY."
   (server-start t t))
 #+end_src
 
+** Stupidity
+*** Elcord
+#+begin_src emacs-lisp
+(use-package elcord
+  :config
+  (setopt elcord-use-major-mode-as-main-icon t
+          elcord-idle-message "cat is sleeping on the keyboard")
+  (add-to-list 'elcord-mode-icon-alist '(LaTeX-mode . "latex-mode_icon")))
+#+end_src
+
 ** Tab groups
 #+begin_src emacs-lisp
 (use-package nerd-icons
@@ -1959,10 +1971,11 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
   :hook (LaTeX-mode . turn-on-reftex)
   :config
   (setopt reftex-label-alist '(("theorem" 104 "thm:" nil nil nil -3)
-                               ("lemma" 108 "lem:" nil nil nil -3))
+                               ("lemma" 108 "lem:" nil nil nil -3)
+                               ("example" 103 "eg:" nil nil nil -3))
           reftex-ref-style-default-list '("Cleveref" "AMSmath")
           reftex-plug-into-AUCTeX t
-          reftex-insert-label-flags '("s" "sfthl")))
+          reftex-insert-label-flags '("s" "sfthlg")))
 #+end_src
 
 *** Texlab with Eglot
