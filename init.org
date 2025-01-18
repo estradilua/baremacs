@@ -2103,11 +2103,11 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
   (setopt org-indent-indentation-per-level 1
           org-src-window-setup 'split-window-below
           org-directory "~/dados/org"
-          org-fold-core-style 'text-properties
           org-startup-indented t
           org-support-shift-select t
           org-insert-heading-respect-content t
           org-hide-leading-stars t
+          org-fold-show-context-detail '((agenda . local) (bookmark-jump . lineage) (isearch . local) (default . ancestors))
           org-id-method 'ts
           org-src-lang-modes (cl-pushnew '("latex" . LaTeX) org-src-lang-modes)
           org-highlight-latex-and-related '(native latex script)
