@@ -578,15 +578,17 @@ This does not set any default keymaps. For that use
 #+begin_src emacs-lisp
 (use-package vertico
   :init
-  (vertico-mode)
+  (vertico-mode +1)
   :config
   (setopt vertico-resize nil
-          vertico-count 8))
+          vertico-count 8)
+  (vertico-mouse-mode +1))
 
 (add-hook 'minibuffer-setup-hook #'cursor-intangible-mode)
-(setopt minibuffer-prompt-properties '(read-only t cursor-intangible t face minibuffer-prompt))
-(setopt enable-recursive-minibuffers t)
-(setopt read-extended-command-predicate #'command-completion-default-include-p)
+(setopt minibuffer-prompt-properties
+        '(read-only t cursor-intangible t face minibuffer-prompt)
+        enable-recursive-minibuffers t
+        read-extended-command-predicate #'command-completion-default-include-p)
 #+end_src
 
 **** Extensions
