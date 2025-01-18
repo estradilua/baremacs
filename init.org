@@ -1109,6 +1109,13 @@ Let's add some keys to it.
           project-vc-extra-root-markers '("latexmkrc")))
 #+end_src
 
+*** TODO Workaround to bad VC cache management
+#+begin_src emacs-lisp
+(defun clear-vc-obarray-cache ()
+  (interactive)
+  (setq vc-file-prop-obarray (obarray-make)))
+#+end_src
+
 ** Recentf
 #+begin_src emacs-lisp
 (use-package recentf
