@@ -2086,6 +2086,7 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
 ** Org
 #+begin_src emacs-lisp
 (use-package org
+  :ensure nil
   :mode ("\\.org\\'" . org-mode)
   :commands (org-mode)
   :config
