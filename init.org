@@ -1105,6 +1105,19 @@ Let's add some keys to it.
 (use-package project
   :ensure nil
   :config
+  (setmap project-map
+          "a" (lambda (dir &optional dont-open)
+                (interactive "DDirectory: \nP")
+                (project--ensure-read-project-list)
+                (if-let* ((project (project--find-in-directory dir)))
+                    (progn (project-remember-project project)
+                           (message "Found %s..." (project-root project))
+                           (unless dont-open
+                             (project-switch-project (project-root project))))
+                  (message "No projects were found"))) 
+          "A" #'project-remember-projects-under
+          "d" #'project-forget-project
+          "D" #'project-forget-projects-under)
   (set-keymap-parent project-map project-prefix-map)
   (keymap-set leader-map "SPC" #'project-find-file)
   (setopt project-switch-commands #'project-find-file
