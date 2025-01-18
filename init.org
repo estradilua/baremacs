@@ -1273,6 +1273,17 @@ If SAVE is non-nil save, otherwise format candidate given action KEY."
 (setq tramp-default-method "ssh")
 #+end_src
 
+#+begin_src emacs-lisp
+(advice-add #'completion-file-name-table :around
+            (defun completion-file-name-table-ad (fn str pred action)
+              (let ((pred (if (eq pred 'file-directory-p)
+                              (lambda (s)
+                                (let ((len (length s)))
+                                  (and (> len 0) (memq (aref s (1- len)) '(?/ ?: ?@)))))
+                            pred)))
+                (funcall fn str pred action))))
+#+end_src
+
 ** Terminal
 #+begin_src emacs-lisp
 (use-package eat)
