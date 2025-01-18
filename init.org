@@ -191,6 +191,7 @@ This functionality allows binding many keys to TAB via a hook. The command will 
         evil-ex-substitute-global t
         evil-lookup-func #'helpful-at-point
         evil-shift-round nil
+        evil-move-beyond-eol t
         evil-cross-lines t
         evil-want-abbrev-expand-on-insert-exit nil
         evil-undo-system 'undo-redo
