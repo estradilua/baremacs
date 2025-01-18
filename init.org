@@ -979,7 +979,7 @@ Let's group by projects using a handy package.
 ** Good scrolling
 #+begin_src emacs-lisp
 (pixel-scroll-precision-mode 1)
-(setopt pixel-scroll-precision-interpolation-factor 1.5)
+(setopt pixel-scroll-precision-interpolation-factor 0.7)
 #+end_src
 
 ** Helpful
