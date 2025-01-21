@@ -114,7 +114,8 @@ This is pretty much a hack but it is short and it works.
         "l" #'display-line-numbers-mode)
 
 (setmap buffer-map
-        "d" #'kill-buffer
+        "d" (cmd! (when (y-or-n-p "Kill the current buffer?")
+                    (kill-buffer)))
         "r" #'revert-buffer)
 
 (setmap leader-map
@@ -183,9 +184,7 @@ This functionality allows binding many keys to TAB via a hook. The command will 
 ** Evil 😈 🥰
 #+begin_src emacs-lisp
 (use-package evil
-  :bind (("C-w" . evil-delete-backward-word)
-         :map buffer-map
-         ("l" . evil-switch-to-windows-last-buffer))
+  :bind (("C-w" . evil-delete-backward-word))
   :init
   (setq evil-want-integration t
         evil-ex-substitute-global t
@@ -213,7 +212,11 @@ This functionality allows binding many keys to TAB via a hook. The command will 
     (kbd "C-g") #'evil-normal-state)
   (evil-define-key '(normal emacs) 'global
     (kbd "SPC") leader-map
-    (kbd "C-t") nil))
+    (kbd "C-t") nil)
+
+  (setmap buffer-map
+          "l" #'evil-switch-to-windows-last-buffer
+          "D" (cmd! (kill-buffer) (evil-quit))))
 #+end_src
 
 *** COMMENT Embrace
