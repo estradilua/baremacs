@@ -2181,6 +2181,68 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
 #+end_src
 
 *** Appearance
+**** Font-lock patches
+***** Fragment fontification without =org-block=
+Org reuses the ~org-src-font-lock-fontify-block~ function to fontify LaTeX fragments natively. But this function adds the very inappropiate face ~org-block~ to everything. Let's remove it when the native block is one of our fragments.
+
+#+begin_src emacs-lisp :noweb-ref termux
+(defvar org--font-locking-latex-fragment nil)
+
+(advice-add #'org-do-latex-and-related :around
+            (defun signal-font-locking-latex (orig-fun &rest args)
+              (let ((org--font-locking-latex-fragment t))
+                (apply orig-fun args))))
+
+(advice-add #'org-src-font-lock-fontify-block :after
+            (defun do-not-org-block-my-latex-advice (_ start end)
+              (when org--font-locking-latex-fragment
+                (alter-text-property start end 'face (lambda (l) (remove 'org-block l))))))
+#+end_src
+
+***** Better alignment for =mixed-pitch=
+#+begin_src emacs-lisp
+(defun org-add-indent-face-to-prespace ()
+  (setq
+   org-font-lock-extra-keywords
+   (append (delete
+            '("^ *\\([-+]\\|\\(?:[0-9]+\\|[a-zA-Z]\\)[).]\\)[ \t]" 1 'org-list-dt append)
+            org-font-lock-extra-keywords)
+           ;; Add org-indent face to all spaces at line starts
+           '(("^\\( +\\)"
+              (1 'org-indent append))
+             ;; Also fontify * bullets
+             ("^ +\\(\\*\\)\\([ \t]\\)"
+              (1 'org-list-dt append)
+              (2 'org-indent append))
+             ;; This is modified from user @psii
+             ;; https://github.com/doomemacs/themes/pull/716
+             ("^ *\\([-+]\\|\\(?:[0-9]+\\|[a-zA-Z]\\)[).]\\)\\([ \t]\\)"
+                           (1 'org-list-dt append)
+                           (2 'org-indent append))))))
+
+(add-hook 'org-font-lock-set-keywords-hook #'org-add-indent-face-to-prespace)
+#+end_src
+
+We can also make list bullets fixed-pitch, so they are even more aligned.
+#+begin_src emacs-lisp
+(with-eval-after-load 'mixed-pitch
+  (add-to-list 'mixed-pitch-fixed-pitch-faces 'org-list-dt)
+  (add-to-list 'mixed-pitch-fixed-pitch-faces 'rainbow-delimiters-depth-1-face))
+#+end_src
+
+***** Fontify counter cookies
+#+begin_src emacs-lisp
+(defun org-fontify-counter-cookies ()
+  (setq
+   org-font-lock-extra-keywords
+   (append org-font-lock-extra-keywords
+           '(("^[ \t]*\\(?:[-+*]\\|\\(?:[0-9]+\\|[a-zA-Z]\\)[.)]\\)[ \t]+\\(\\[@\\(?:start:\\)?\\(?:[0-9]+\\|[a-zA-Z]\\)\\]\\)"
+              (1 'org-property-value prepend))))))
+
+(add-hook 'org-font-lock-set-keywords-hook #'org-fontify-counter-cookies)
+#+end_src
+
+**** Stars
 #+begin_src emacs-lisp
 (use-package org-superstar
   :after (org)
