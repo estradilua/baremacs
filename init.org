@@ -1844,6 +1844,25 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
     '(bar window-number pdf-pages pdf-icon buffer-name)
     '(misc-info matches major-mode process vcs)))
 
+**** Better Flymake segment
+When in a project, display Flymake diagnostics counts for the whole project.
+#+begin_src emacs-lisp
+(advice-add 'doom-modeline--flymake-count-errors :override
+            (defun doom-modeline--flymake-count-project-errors ()
+              "Count the number of ERRORS in current project or buffer, grouped by
+level."
+              (let ((warning-level (warning-numeric-level :warning))
+                    (note-level (warning-numeric-level :debug))
+                    (note 0) (warning 0) (error 0))
+                (dolist (diag (flymake--project-diagnostics))
+                  (let ((severity (flymake--lookup-type-property
+                                   (flymake--diag-type diag)
+                                   'severity
+                                   (warning-numeric-level :error))))
+                    (cond ((> severity warning-level) (cl-incf error))
+                          ((> severity note-level) (cl-incf warning))
+                          (t (cl-incf note)))))
+                `((note . ,note) (warning . ,warning) (error . ,error)))))
 #+end_src
 
 *** MLScroll
