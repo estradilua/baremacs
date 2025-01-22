@@ -1050,13 +1050,14 @@ Let's add some keys to it.
   :init
   (defvar-keymap git-map :doc "Actions related to Git.")
   (keymap-set leader-map "g" (cons "Git" git-map))
-  (setmap git-map
-          "g" #'magit
-          "s" #'magit-stage
-          "u" #'magit-unstage
-          "c c" #'magit-commit-create
-          "c a" #'magit-commit-amend
-          "c f" #'magit-commit-fixup))
+  :bind
+  (:map git-map
+        ("g" . magit)
+        ("s" . magit-stage)
+        ("u" . magit-unstage)
+        ("c c" . magit-commit-create)
+        ("c a" . magit-commit-amend)
+        ("c f" . magit-commit-fixup)))
 #+end_src
 
 *** Todos
