@@ -1053,7 +1053,7 @@ Let's add some keys to it.
   :bind
   (:map git-map
         ("g" . magit)
-        ("s" . magit-stage)
+        ("S" . magit-stage)
         ("u" . magit-unstage)
         ("c c" . magit-commit-create)
         ("c a" . magit-commit-amend)
@@ -1077,6 +1077,18 @@ Let's add some keys to it.
 *** Forge
 #+begin_src emacs-lisp
 (use-package forge)
+#+end_src
+
+*** Gutter (diff-hl)
+#+begin_src emacs-lisp
+(use-package diff-hl
+  :hook (prog-mode . diff-hl-mode)
+  :commands (diff-hl-stage-dwim)
+  :init
+  (setmap git-map "s" (cons "Stage hunk" #'diff-hl-stage-dwim))
+  :config
+  (setopt diff-hl-show-staged-changes nil
+          diff-hl-fringe-bmp-function #'diff-hl-fringe-bmp-from-type))
 #+end_src
 
 ** Persistence
