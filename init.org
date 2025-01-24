@@ -6,8 +6,8 @@ This Emacs config attempts to use the bundled libraries as much as possible, but
 
 Here is an overview of features:
 - Persistence across sessions via built-in ~savehist~ and ~desktop~ packages;
-- Project management via built-in ~project~, enhanced via ~project-tab-groups~ and ~tab-bar-echo-area~ to make it very much like ~perspective~ but way more stable and integrated;
-- ~evil~! The muscle memory is way too strong to give up on this one!
+- Project management via built-in ~project~, enhanced via ~perject~;
+- ~evil~! The muscle memory is way too strong to give up on this one.
 - Everything Minad has gifted us puny humans:
   - ~vertico~ completion interface, with ~marginalia~ annotations and ~nerd-icons~;
   - ~corfu~ completion-at-point interface, along with ~cape~ goodies;
