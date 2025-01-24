@@ -1015,23 +1015,6 @@ Let's group by projects using a handy package.
 (defun display-startup-echo-area-message ())
 #+end_src
 
-** Ligatures
-#+begin_src emacs-lisp
-(use-package ligature
-  :init
-  (global-ligature-mode t)
-  :config
-  (ligature-set-ligatures
-   'haskell-mode '("</" "</>" "/>" "~-" "-~" "~@" "<~" "<~>" "<~~" "~>" "~~"
-                   "~~>" ">=" "<=" "<!--" "##" "###" "####" "|-" "-|" "|->"
-                   "<-|" ">-|" "|-<" "|=" "|=>" "<-" "<--" "-->" "->" "-<"
-                   ">->" ">>-" "<<-" "<->" "->>" "-<<" "<-<" "==>" "=>" "=/="
-                   "!==" "!=" "<==" ">>=" "=>>" ">=>" "<=>" "<=<" "<<=" "=<<"
-                   ".-" ".=" "=:=" "=!=" "==" "===" "::" ":=" 
-                   "<|" "<|>" "|>" "<>" "<$" "<$>" "$>" "<+" "<+>" "+>"
-                   "?=" "/=" "/==" "/\\" "\\/" "__" "&&" "++" "+++")))
-#+end_src
-
 ** Magit
 #+begin_src emacs-lisp
 (use-package magit
@@ -1739,6 +1722,22 @@ Custom predicate for composing only inside LaTeX delimiters.
  '(fixed-pitch ((t (:family "Victor Mono"))))
  '(variable-pitch ((t (:weight normal :family "IBM Plex Sans"))))
  '(ef-themes-ui-variable-pitch ((t (:inherit variable-pitch)))))
+#+end_src
+*** Ligatures
+#+begin_src emacs-lisp
+(use-package ligature
+  :init
+  (global-ligature-mode t)
+  :config
+  (ligature-set-ligatures
+   'haskell-mode '("</" "</>" "/>" "~-" "-~" "~@" "<~" "<~>" "<~~" "~>" "~~"
+                   "~~>" ">=" "<=" "<!--" "##" "###" "####" "|-" "-|" "|->"
+                   "<-|" ">-|" "|-<" "|=" "|=>" "<-" "<--" "-->" "->" "-<"
+                   ">->" ">>-" "<<-" "<->" "->>" "-<<" "<-<" "==>" "=>" "=/="
+                   "!==" "!=" "<==" ">>=" "=>>" ">=>" "<=>" "<=<" "<<=" "=<<"
+                   ".-" ".=" "=:=" "=!=" "==" "===" "::" ":=" 
+                   "<|" "<|>" "|>" "<>" "<$" "<$>" "$>" "<+" "<+>" "+>"
+                   "?=" "/=" "/==" "/\\" "\\/" "__" "&&" "++" "+++")))
 #+end_src
 
 *** Unicode
