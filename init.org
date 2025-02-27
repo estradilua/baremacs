@@ -89,6 +89,9 @@ This is pretty much a hack but it is short and it works.
 (defvar-keymap toggle-map
   :doc "Toggle actions keymap.")
 
+(defvar-keymap open-map
+  :doc "Open actions keymap.")
+
 (defvar-keymap buffer-map
   :doc "Buffer actions keymap.")
 
@@ -114,8 +117,7 @@ This is pretty much a hack but it is short and it works.
         "l" #'display-line-numbers-mode)
 
 (setmap buffer-map
-        "d" (cmd! (when (y-or-n-p "Kill the current buffer?")
-                    (kill-buffer)))
+        "d" (defun kill-this-buffer () (interactive) (kill-buffer))
         "r" #'revert-buffer)
 
 (setmap leader-map
@@ -126,9 +128,11 @@ This is pretty much a hack but it is short and it works.
         "s" (cons "Search" search-map)
         "p" (cons "Project" project-map)
         "t" (cons "Toggle" toggle-map)
+        "o" (cons "Open" open-map)
         "f" (cons "File" file-map)
         "m" (cons "Mode" mode-map)
-        "." #'find-file)
+        "." #'find-file
+        "u" #'universal-argument)
 #+end_src
 
 ** Utility
@@ -186,22 +190,26 @@ This functionality allows binding many keys to TAB via a hook. The command will 
 (use-package evil
   :bind (("C-w" . evil-delete-backward-word))
   :init
-  (setq evil-want-integration t
-        evil-ex-substitute-global t
-        evil-lookup-func #'helpful-at-point
-        evil-shift-round nil
-        evil-move-beyond-eol t
-        evil-cross-lines t
-        evil-want-abbrev-expand-on-insert-exit nil
-        evil-undo-system 'undo-redo
-        evil-move-cursor-back nil
-        evil-want-fine-undo t
-        evil-want-keybinding nil)
+  (setopt evil-want-integration t
+          evil-ex-substitute-global t
+          evil-lookup-func #'helpful-at-point
+          evil-shift-round nil
+          evil-move-beyond-eol t
+          evil-cross-lines t
+          evil-want-abbrev-expand-on-insert-exit nil
+          evil-undo-system 'undo-redo
+          evil-move-cursor-back nil
+          evil-want-fine-undo t
+          evil-want-keybinding nil)
   (evil-mode 1)
+
   :config
   (set-keymap-parent window-map evil-window-map)
+  (keymap-set evil-motion-state-map "C-w" window-map)
+
   (evil-define-key '(normal visual) 'global
-    (kbd "g s s") #'evil-avy-goto-char-2)
+    (kbd "g s s") #'evil-avy-goto-char-timer
+    (kbd "g s 2") #'evil-avy-goto-char-2)
   (evil-define-key 'motion text-mode-map
     "j" #'evil-next-visual-line
     "k" #'evil-previous-visual-line)
@@ -216,7 +224,7 @@ This functionality allows binding many keys to TAB via a hook. The command will 
 
   (setmap buffer-map
           "l" #'evil-switch-to-windows-last-buffer
-          "D" (cmd! (kill-buffer) (evil-quit))))
+          "D" (defun quit-this-buffer () (interactive) (kill-buffer) (evil-quit))))
 #+end_src
 
 *** COMMENT Embrace
@@ -240,12 +248,22 @@ This functionality allows binding many keys to TAB via a hook. The command will 
   (evil-escape-mode))
 #+end_src
 
+*** Exchange
+#+begin_src emacs-lisp
+(use-package evil-exchange
+  :after evil
+  :init
+  (evil-exchange-install))
+#+end_src
+
 *** Collection
 #+begin_src emacs-lisp
 (use-package evil-collection
   :after evil
   :init
-  (evil-collection-init))
+  (evil-collection-init)
+  :config
+  (evil-define-key 'normal help-mode-map (kbd "SPC") nil))
 #+end_src
 
 *** Multiedit
@@ -505,7 +523,7 @@ The ~cape-dabbrev~ backend does not handle casing very well; see my issue [[http
 ** Marginalia
 #+begin_src emacs-lisp
 (use-package marginalia
-  :bind (:map minibuffer-local-map
+  :bind (:map minibuffer-mode-map
             ("M-A" . marginalia-cycle))
   :init
   (marginalia-mode))
@@ -623,7 +641,7 @@ This does not set any default keymaps. For that use
   :hook (minibuffer-setup . vertico-repeat-save))
 #+end_src
 
-**** COMMENT Posframe
+**** Posframe
 #+begin_src emacs-lisp
 (use-package vertico-posframe
   :init
@@ -863,6 +881,8 @@ Let's group by projects using a handy package.
   :ensure nil
   :custom-face
   (eglot-diagnostic-tag-unnecessary-face ((t (:inherit shadow))))
+  :custom
+  (eglot-code-action-indicator (nerd-icons-octicon "nf-oct-light_bulb"))
   :config
   (setcdr (assoc '(latex-mode plain-tex-mode context-mode texinfo-mode bibtex-mode tex-mode)
                  eglot-server-programs)
@@ -981,8 +1001,23 @@ Let's group by projects using a handy package.
 
 ** Good scrolling
 #+begin_src emacs-lisp
-(pixel-scroll-precision-mode 1)
-(setopt pixel-scroll-precision-interpolation-factor 0.7)
+(setopt pixel-scroll-precision-interpolation-factor 0.1
+        pixel-scroll-precision-interpolate-mice t
+        pixel-scroll-precision-interpolate-page t
+        pixel-scroll-precision-interpolation-total-time 0.15)
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package ultra-scroll
+  :ensure (:repo "https://github.com/jdtsmith/ultra-scroll")
+  :init
+  (ultra-scroll-mode +1)
+  :custom
+  (auto-window-vscroll nil)            ; Don't adjust window-vscroll for tall lines
+  (next-screen-context-lines 4)        ; Preserve this many lines when jumping a screenful
+  (scroll-margin 0)                    ; Scroll when cursor is this many lines to screen edge
+  (scroll-conservatively 101)          ; Only 'jump' when moving this far off the screen
+  (scroll-preserve-screen-position t)) ; Preserve line/column (nicer M-v, C-v, etc.)
 #+end_src
 
 ** Helpful
@@ -1070,8 +1105,10 @@ Let's add some keys to it.
   :init
   (setmap git-map "s" (cons "Stage hunk" #'diff-hl-stage-dwim))
   :config
+  (diff-hl-flydiff-mode +1)
   (setopt diff-hl-show-staged-changes nil
-          diff-hl-fringe-bmp-function #'diff-hl-fringe-bmp-from-type))
+          diff-hl-draw-borders nil
+          diff-hl-fringe-bmp-function #'diff-hl-fringe-bmp-from-pos))
 #+end_src
 
 ** Persistence
@@ -1079,30 +1116,37 @@ Let's add some keys to it.
 #+begin_src emacs-lisp
 (use-package savehist
   :ensure nil
-  :hook (after-init . savehist-mode))
+  :hook (after-init . savehist-mode)
+  :config
+  (add-to-list 'savehist-additional-variables 'custom-enabled-themes)
+  (add-to-list 'savehist-additional-variables 'register-alist)
+  (add-hook 'elpaca-after-init-hook
+            (defun savehist-apply-theme-h ()
+              (dolist (theme custom-enabled-themes)
+                (load-theme theme :no-confirm)))))
 #+end_src
 
 *** Desktop
 #+begin_src emacs-lisp
-(with-eval-after-load 'desktop
-  (setopt desktop-globals-to-save '(custom-enabled-themes)))
+;; (add-hook 'elpaca-after-init-hook
+;;   (defun enable-desktop-save-h ()
+;;     (desktop-read)
+;;     (desktop-save-mode 1))
+;;   99)
+#+end_src
 
-(add-hook 'desktop-after-read-hook
-          (defun desktop-apply-theme-h ()
-            (dolist (theme custom-enabled-themes)
-              (load-theme theme :no-confirm))))
-
-(add-hook 'elpaca-after-init-hook
-  (defun enable-desktop-save-h ()
-    (desktop-read)
-    (desktop-save-mode 1))
-  99)
+*** Tab-bookmark
+#+begin_src emacs-lisp
+(use-package tab-bookmark
+  :ensure (:repo "https://github.com/minad/tab-bookmark.git"))
 #+end_src
 
 ** Projects
 #+begin_src emacs-lisp
 (use-package project
   :ensure nil
+  :init
+  (require 'project)
   :config
   (setmap project-map
           "a" (lambda (dir &optional dont-open)
@@ -1123,8 +1167,90 @@ Let's add some keys to it.
           project-prompter #'project-prompt-project-dir
           project-vc-extra-root-markers '("latexmkrc")))
 #+end_src
+*** Perject
+#+begin_src emacs-lisp
+(use-package perject
+  :after savehist
+  :custom-face
+  (perject-mode-line-face ((t (:foreground unspecified :weight bold))))
+  (perject-tab-mode-line-face ((t (:foreground unspecified :weight bold))))
+  :init
+  ;; Make perject load the collections that were previously open.
+  ;; This requires configuring `savehist' (see next code block).
+  (setq perject-load-at-startup 'previous)
 
-*** TODO Workaround to bad VC cache management
+  (perject-mode 1)
+  :bind
+  (:map perject-mode-map
+        ("s-S" . perject-switch)
+        ("s-a" . perject-next-project)
+        ("s-A" . perject-previous-project)
+        ("s-z" . perject-next-collection)
+        ("s-Z" . perject-previous-collection)
+        ("C-x 5 2" . perject-create-new-frame)
+        ("<C-insert>" . perject-add-buffer-to-project)
+        ("<C-delete>" . perject-remove-buffer-from-project)
+        ("<C-home>" . perject-open-close-or-reload)
+        ("<C-end>" . perject-rename)
+        ("<C-S-end>" . perject-sort)
+        ("<C-prior>" . perject-save)
+        ("<C-next>" . perject-delete))
+  :config
+  (setopt perject-tab-states '(("mutable" always "⟨" "⟩")
+                               ("dynamic" perject-tab--dynamic-state "[" "]")
+                               ("immutable" ignore "⟦" "⟧"))))
+
+(use-package savehist
+  :ensure nil
+  :config
+  ;; Required if `perject-load-at-startup' is set to 'previous.
+  (add-to-list 'savehist-additional-variables 'perject--previous-collections))
+
+(use-package perject-tab
+  :ensure nil
+  :after perject
+  :init
+  (perject-tab-mode 1)
+  :bind
+  (:map perject-tab-mode-map
+        ("s-s" . perject-tab-recent)
+        ("s-D" . perject-tab-previous)
+        ("s-d" . perject-tab-next)
+        ("s-f" . perject-tab-set)
+        ("s-F" . perject-tab-cycle-state)
+        ("s-x" . perject-tab-create)
+        ("s-X" . perject-tab-delete)
+        ("s-c" . perject-tab-reset)
+        ("s-v" . perject-tab-increment-index)
+        ("s-V" . perject-tab-decrement-index)))
+
+(use-package perject-consult
+  :ensure nil
+  :defer nil
+  :after (perject consult)
+  :config
+  ;; Hide the list of all buffers by default and set narrowing to all buffers to space.
+  (consult-customize consult--source-buffer :hidden t :narrow 32)
+  (consult-customize consult--source-hidden-buffer :narrow ?h)
+  (add-to-list 'consult-buffer-sources 'perject-consult--source-collection-buffer)
+  (add-to-list 'consult-buffer-sources 'perject-consult--source-project-buffer))
+
+(use-package perject-ibuffer
+  :ensure nil
+  :defer nil
+  :after perject
+  :init
+  ;; By default restrict ibuffer to the buffers of the current project.
+  (add-hook 'ibuffer-hook #'perject-ibuffer-enable-filter-by-project)
+  :bind (:map ibuffer-mode-map
+              ("<insert>" . perject-ibuffer-add-to-project)
+              ("<delete>" . perject-ibuffer-remove-from-project)
+              ("<next>" . perject-ibuffer-print-buffer-projects)
+              ("/ y" . ibuffer-filter-by-collection)
+              ("/ u" . ibuffer-filter-by-project)))
+#+end_src
+
+*** Workaround to bad VC cache management
 #+begin_src emacs-lisp
 (defun clear-vc-obarray-cache ()
   (interactive)
@@ -1199,7 +1325,7 @@ If SAVE is non-nil save, otherwise format candidate given action KEY."
   (add-to-list 'elcord-mode-icon-alist '(LaTeX-mode . "latex-mode_icon")))
 #+end_src
 
-** Tab groups
+** Tabs
 #+begin_src emacs-lisp
 (use-package nerd-icons
   :config
@@ -1239,9 +1365,10 @@ If SAVE is non-nil save, otherwise format candidate given action KEY."
           tab-bar-tab-hints nil
           tab-bar-new-tab-choice "*scratch*"))
 
-(use-package project-tab-groups
-  :init
-  (project-tab-groups-mode 1))
+(use-package tab-line
+  :ensure nil
+  :custom-face
+  (tab-line ((t (:height 0.9)))))
 #+end_src
 
 **** COMMENT Echo area tab bar
@@ -1282,7 +1409,6 @@ If SAVE is non-nil save, otherwise format candidate given action KEY."
 (add-to-list 'consult-buffer-sources 'consult--source-tab-local)
 (add-to-list 'consult-project-buffer-sources 'consult--source-tab-local)
 #+end_src
-
 ** Tramp
 #+begin_src emacs-lisp
 (setq tramp-default-method "ssh")
@@ -1299,9 +1425,18 @@ If SAVE is non-nil save, otherwise format candidate given action KEY."
                 (funcall fn str pred action))))
 #+end_src
 
-** Terminal
+** Terminal (eat)
 #+begin_src emacs-lisp
-(use-package eat)
+(use-package eat
+  :init
+  (setmap open-map "t" (cons "Terminal" (cmd! (eat nil t))))
+  :config
+  (setq eat-kill-buffer-on-exit t
+        eat-shell "zsh")
+  (advice-add 'eat--kill-buffer :override
+              (defun eat--kill-buffer-ad (_process)
+               "Kill current buffer."
+               (kill-buffer-and-window))))
 #+end_src
 
 ** Text wrapping
@@ -1319,12 +1454,52 @@ If SAVE is non-nil save, otherwise format candidate given action KEY."
   (setopt treesit-language-source-alist
           '((kdl "https://github.com/tree-sitter-grammars/tree-sitter-kdl.git")
             (typescript "https://github.com/tree-sitter/tree-sitter-typescript.git" nil "typescript/src")
-            (tsx "https://github.com/tree-sitter/tree-sitter-typescript.git" nil "tsx/src"))))
+            (tsx "https://github.com/tree-sitter/tree-sitter-typescript.git" nil "tsx/src")
+            (rust "https://github.com/tree-sitter/tree-sitter-rust.git"))))
 #+end_src
 *** External
 #+begin_src emacs-lisp
 (use-package tree-sitter)
 (use-package tree-sitter-langs)
+#+end_src
+
+** Windows
+**** Transpose-frame
+#+begin_src emacs-lisp
+(use-package transpose-frame
+  :init
+  (setmap window-map
+          "C-r" #'rotate-frame-clockwise
+          "C-R" #'rotate-frame-anticlockwise
+          "C-t" #'transpose-frame))
+#+end_src
+**** Popper
+#+begin_src emacs-lisp
+(use-package popper
+  :bind (("C-`"   . popper-toggle)
+         ("M-`"   . popper-cycle)
+         ("C-M-`" . popper-toggle-type))
+  :init
+  (setopt popper-reference-buffers
+          '("\\*Messages\\*"
+            "\\*Async Shell Command\\*"
+            "\\*eat\\*" eat-mode
+            help-mode
+            helpful-mode
+            compilation-mode)
+          popper-mode-line '(:eval (propertize " P " 'face 'mode-line-emphasis))
+          popper-display-control 'user)
+  (popper-mode +1)
+  (popper-tab-line-mode +1)) ; For echo area hints
+#+end_src
+**** Shackle
+#+begin_src emacs-lisp
+(use-package shackle
+  :init
+  (shackle-mode +1)
+  :config
+  (setopt shackle-rules '((messages-buffer-mode :align 'below :size 0.3)
+                          (eat-mode :popup t :align 'below :size 0.3 :select t))))
 #+end_src
 
 * Writing
@@ -1456,6 +1631,8 @@ Custom predicate for composing only inside LaTeX delimiters.
              ("\\impliedby" . ?⇐)
              ("\\sqrt" . ?√)
              ("\\dots" . ?…)
+             ("\\(" . ?⌞)
+             ("\\)" . ?⌟)
              ("\\not\\subset" . ?⊄))
            (bound-and-true-p tex--prettify-symbols-alist))))
 
@@ -1718,11 +1895,12 @@ Custom predicate for composing only inside LaTeX delimiters.
 ** Fonts and faces
 #+begin_src emacs-lisp
 (custom-set-faces
- '(default ((t (:weight medium :height 145 :family "Victor Mono"))))
+ '(default ((t (:weight medium :height 130 :family "Victor Mono"))))
  '(fixed-pitch ((t (:family "Victor Mono"))))
  '(variable-pitch ((t (:weight normal :family "IBM Plex Sans"))))
  '(ef-themes-ui-variable-pitch ((t (:inherit variable-pitch)))))
 #+end_src
+
 *** Ligatures
 #+begin_src emacs-lisp
 (use-package ligature
@@ -1747,6 +1925,8 @@ Custom predicate for composing only inside LaTeX delimiters.
 (defun adjust-symbolic-fonts ()
   (dolist (script '(symbol mathematical unicode))
     (set-fontset-font t script (font-spec :family "Julia Mono") nil 'prepend))
+  (dolist (script '(han kana cjk-misc kanbun bopomofo ideographic-description))
+    (set-fontset-font t script (font-spec :family "IBM Plex Sans JP") nil 'prepend))
   (set-fontset-font t 'emoji "Twemoji" nil 'prepend))
 
 (adjust-symbolic-fonts)
@@ -1771,15 +1951,20 @@ Custom predicate for composing only inside LaTeX delimiters.
   (setopt olivetti-body-width 100))
 #+end_src
 
+** Fringes
+#+begin_src emacs-lisp
+(fringe-mode '(4 . 4))
+#+end_src
+
 ** Theme
-*** EF themes
+*** EF-themes
 #+begin_src emacs-lisp
 (use-package ef-themes
   :bind (:map toggle-map ("t" . ef-themes-toggle))
   :custom-face
   (ef-themes-fixed-pitch ((t (:inherit fixed-pitch))))
   :config
-  (setopt ef-themes-to-toggle '(ef-arbutus ef-dream)
+  (setopt ef-themes-to-toggle '(ef-reverie ef-dream)
           ef-themes-mixed-fonts t
           ef-themes-variable-pitch-ui t))
 #+end_src
@@ -1819,9 +2004,11 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
           doom-modeline-height 22
           doom-modeline-buffer-encoding nil
           doom-modeline-workspace-name nil
+          doom-modeline-display-misc-in-all-mode-lines nil
           doom-modeline-bar-width 1
           doom-modeline-icon nil))
 #+end_src
+
 *** Segments
 **** PDF
 #+begin_src emacs-lisp
@@ -1895,7 +2082,19 @@ level."
 #+begin_src emacs-lisp
 (use-package treemacs
   :bind (:map toggle-map
-              ("p" . treemacs)))
+              ("p" . treemacs))
+  :custom-face
+  (treemacs-window-background-face ((t :inherit corfu-default)))
+  (treemacs-file-face ((t :inherit variable-pitch)))
+  (treemacs-directory-face ((t :inherit (variable-pitch font-lock-function-name-face))))
+  (treemacs-git-untracked-face ((t :inherit (variable-pitch font-lock-string-face))))
+  (treemacs-git-added-face ((t :inherit (variable-pitch font-lock-type-face))))
+  (treemacs-git-ignored-face ((t :inherit (variable-pitch font-lock-comment-face))))
+  (treemacs-git-modified-face ((t :inherit (variable-pitch font-lock-variable-name-face))))
+  :config
+  (setopt treemacs-position 'left
+          treemacs-width 35)
+  (treemacs-project-follow-mode +1))
 
 (use-package treemacs-evil
   :after (treemacs evil)
@@ -1931,6 +2130,13 @@ level."
 #+begin_src emacs-lisp
 (use-package kkp
   :hook (tty-setup . global-kkp-mode))
+  ;; :config
+  ;; (setq kkp--progressive-enhancement-flags '((disambiguate-escape-codes :bit 1)
+  ;;                                            (report-alternate-keys :bit 4)
+  ;;                                            (report-all-keys-as-escape-codes :bit 8))
+  ;;       kkp-active-enhancements '(disambiguate-escape-codes
+  ;;                                 report-alternate-keys
+  ;;                                 report-all-keys-as-escape-codes)))
 #+end_src
 
 * Languages
@@ -2128,6 +2334,7 @@ level."
   :mode ("\\.org\\'" . org-mode)
   :commands (org-mode)
   :config
+  (require 'org-mouse)
   (modal-setmap org-mode-map mode-map
                 "." #'consult-org-heading
                 "i" #'consult-org-heading
@@ -2157,7 +2364,6 @@ level."
 #+end_src
 
 *** Organon
-
 #+begin_src emacs-lisp
 (define-minor-mode organon-follow-mode
   "Set whether organon should follow your every move in Emacs."
@@ -2346,3 +2552,22 @@ We can also make list bullets fixed-pitch, so they are even more aligned.
 (use-package yaml-mode)
 #+end_src
 
+** Systemd
+#+begin_src emacs-lisp
+(use-package systemd)
+
+(use-package daemons)
+
+(with-eval-after-load 'autoinsert
+  (add-to-list 'auto-insert-alist
+               (cons 'systemd-mode
+                     (lambda ()
+                       (tempel-insert
+                        '("[Unit]" n
+                          "PartOf="(p "graphical-session" tgt)".target" n
+                          "After=" tgt ".target" n
+                          "Requisite=" tgt ".target" n n
+                          "[Service]" n
+                          "ExecStart=" p n
+                          "Restart=on-failure"))))))
+#+end_src
