@@ -696,13 +696,6 @@ This does not set any default keymaps. For that use
 #+end_src
 
 **** Extensions
-***** Terminal
-#+begin_src emacs-lisp
-(use-package corfu-terminal
-  :when (not (display-graphic-p))
-  :hook ((corfu-mode . corfu-terminal-mode)))
-#+end_src
-
 ***** History
 #+begin_src emacs-lisp
 (use-package corfu-history
