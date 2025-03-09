@@ -1583,7 +1583,6 @@ If SAVE is non-nil save, otherwise format candidate given action KEY."
 
 (defun abbrev/setup ()
   (require 'abbrev)
-  (abbrev/set-math-text-lang)
   (setq-local local-abbrev-table nil)
   (pcase-dolist (`(,name ,defs ,cond) abbrev/tables)
    (define-abbrev-table name defs :enable-function cond)
