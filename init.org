@@ -2244,11 +2244,44 @@ level."
                               ("./configure"
                                "--with-texmf-dir=$(dirname $(kpsexpand '$TEXMFHOME'))")
                               ("make")))
-  :hook ((LaTeX-mode org-mode) . (lambda () (require 'latex) (LaTeX-math-mode))))
-
-(with-eval-after-load 'tex
+  :hook ((LaTeX-mode org-mode) . (lambda () (require 'latex) (LaTeX-math-mode)))
+  :config
   (setopt TeX-parse-self t
           TeX-auto-save t))
+#+end_src
+
+**** Preview
+#+begin_src emacs-lisp
+(with-eval-after-load 'preview
+  (defun my/preview-scale-from-face ()
+      (let ((d (/ (preview-inherited-face-attribute 'preview-reference-face :height
+                                                    'default)
+                  10.0)))
+        (* (/ d (preview-document-pt))
+           (expt text-scale-mode-step text-scale-mode-amount))))
+  (setopt preview-leave-open-previews-visible t
+          preview-protect-point t
+          preview-scale-function #'my/preview-scale-from-face)
+  (advice-add 'preview-inactive-string :override
+              (defun preview-inactive-string/better-newline (ov)
+                (concat
+                 (preview-make-clickable (overlay-get ov 'preview-map)
+                    (if preview-leave-open-previews-visible
+                        (overlay-get ov 'preview-image)
+                      preview-icon)
+                    "\
+%s redisplays preview
+%s more options")
+                 (with-current-buffer (overlay-buffer ov)
+                   (save-excursion
+                     (save-restriction
+                       (widen)
+                       (goto-char (overlay-start ov))
+                       (beginning-of-line)
+                       (skip-chars-forward "[:space:]")
+                       (if (eq (point) (overlay-start ov))
+                           (concat "\n" (buffer-substring-no-properties (pos-bol) (point)))
+                         ""))))))))
 #+end_src
 
 *** Reftex
