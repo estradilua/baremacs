@@ -641,7 +641,7 @@ This does not set any default keymaps. For that use
   :hook (minibuffer-setup . vertico-repeat-save))
 #+end_src
 
-**** Posframe
+**** COMMENT Posframe
 #+begin_src emacs-lisp
 (use-package vertico-posframe
   :init
