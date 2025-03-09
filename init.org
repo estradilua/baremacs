@@ -920,19 +920,27 @@ Let's group by projects using a handy package.
 
 ** Errors, linting
 *** Flymake
-**** Popon
+**** Sideline
 #+begin_src emacs-lisp
-(use-package flymake-popon
-  :after flymake
-  :custom-face (flymake-popon ((t (:inherit corfu-popupinfo))))
-  :init
-  (global-flymake-popon-mode)
+(use-package sideline
+  :custom-face
+  (sideline-default ((t (:inherit fixed-pitch))))
   :config
-  (setopt flymake-popon-delay 0.8
-          flymake-popon-posframe-border-width 0
-          flymake-popon-method 'posframe
-          flymake-popon-diagnostic-formatter #'flymake-diagnostic-text))
+  (setopt sideline-delay 0))
 #+end_src
+
+#+begin_src emacs-lisp
+(use-package sideline-flymake
+  :hook (flymake-mode . sideline-mode)
+  :custom-face
+  (sideline-flymake-error ((t (:inherit (error fixed-pitch)))))
+  (sideline-flymake-warning ((t (:inherit (warning fixed-pitch)))))
+  (sideline-flymake-success ((t (:inherit (success fixed-pitch)))))
+  :init
+  (setq sideline-flymake-display-mode 'point)
+  (setq sideline-backends-right '(sideline-flymake)))
+#+end_src
+
 *** Eldoc
 #+begin_src emacs-lisp
 (use-package eldoc
