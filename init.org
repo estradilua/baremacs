@@ -1350,7 +1350,9 @@ Let's add some keys to it.
 (use-package tab-line
   :ensure nil
   :custom-face
-  (tab-line ((t (:height 0.9)))))
+  (tab-line ((t (:height 0.9))))
+  :custom
+  (tab-line-close-tab-function 'kill-buffer))
 #+end_src
 
 **** COMMENT Echo area tab bar
