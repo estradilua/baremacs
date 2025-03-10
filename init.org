@@ -1618,8 +1618,6 @@ Custom predicate for composing only inside LaTeX delimiters.
              ("\\impliedby" . ?⇐)
              ("\\sqrt" . ?√)
              ("\\dots" . ?…)
-             ("\\(" . ?⌞)
-             ("\\)" . ?⌟)
              ("\\not\\subset" . ?⊄))
            (bound-and-true-p tex--prettify-symbols-alist))))
 
