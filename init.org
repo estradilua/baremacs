@@ -1140,6 +1140,12 @@ Let's add some keys to it.
   :ensure (:repo "https://github.com/minad/tab-bookmark.git"))
 #+end_src
 
+*** Save-place
+#+begin_src emacs-lisp
+(with-eval-after-load 'emacs
+  (save-place-mode +1))
+#+end_src
+
 ** Projects
 #+begin_src emacs-lisp
 (use-package project
