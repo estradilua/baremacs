@@ -1172,7 +1172,7 @@ Let's add some keys to it.
           project-prompter #'project-prompt-project-dir
           project-vc-extra-root-markers '("latexmkrc")))
 #+end_src
-*** Perject
+*** COMMENT Perject
 #+begin_src emacs-lisp
 (use-package perject
   :after savehist
