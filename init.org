@@ -1043,6 +1043,7 @@ Let's group by projects using a handy package.
         scroll-conservatively 20
         backup-inhibited t
         ring-bell-function #'ignore
+        kill-buffer-quit-windows t
         revert-without-query '(".")
         display-line-numbers-width-start t
         use-short-answers t
@@ -1420,11 +1421,7 @@ Let's add some keys to it.
   (setmap open-map "t" (cons "Terminal" (cmd! (eat nil t))))
   :config
   (setq eat-kill-buffer-on-exit t
-        eat-shell "zsh")
-  (advice-add 'eat--kill-buffer :override
-              (defun eat--kill-buffer-ad (_process)
-               "Kill current buffer."
-               (kill-buffer-and-window))))
+        eat-shell "zsh"))
 #+end_src
 
 ** Text wrapping
