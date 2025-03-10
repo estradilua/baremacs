@@ -131,7 +131,9 @@ This is pretty much a hack but it is short and it works.
         "o" (cons "Open" open-map)
         "f" (cons "File" file-map)
         "m" (cons "Mode" mode-map)
+        "TAB" (cons "Tabs" tab-prefix-map)
         "." #'find-file
+        "x" #'scratch-buffer
         "u" #'universal-argument)
 #+end_src
 
