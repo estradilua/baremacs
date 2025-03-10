@@ -684,6 +684,8 @@ This does not set any default keymaps. For that use
           global-corfu-minibuffer t
           tab-always-indent t)
   (add-hook 'evil-insert-state-exit-hook #'corfu-quit)
+  ;; In case you ever get `args-out-of-range 0 0' errors when using
+  ;; Corfu with Eglot, try setting this. It is also related to ``:exlusive 'no''.
   (add-to-list 'completion-category-overrides `(eglot-capf (styles ,@completion-styles))))
 #+end_src
 
