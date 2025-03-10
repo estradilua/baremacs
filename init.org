@@ -1293,6 +1293,24 @@ Let's add some keys to it.
   (define-key evil-normal-state-map "z=" 'jinx-correct))
 #+end_src
 
+Let's also add a dir-local saving option. 
+
+#+begin_src emacs-lisp
+(with-eval-after-load 'jinx
+  (defun jinx--save-dir (save key word)
+    "Save WORD in dir-local variable.
+If SAVE is non-nil save, otherwise format candidate given action KEY."
+    (if save
+        (progn
+          (jinx--add-local-word 'jinx-dir-local-words word)
+          (save-excursion
+            (modify-dir-local-variable nil 'jinx-dir-local-words jinx-dir-local-words 'add-or-replace)
+            (save-buffer)
+            (kill-buffer)))
+      (list key word "Directory")))
+  (setopt jinx--save-keys (map-insert jinx--save-keys ?/ #'jinx--save-dir)))
+#+end_src
+
 ** Server
 #+begin_src emacs-lisp
 (use-package server
