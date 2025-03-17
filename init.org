@@ -369,12 +369,6 @@ This functionality allows binding many keys to TAB via a hook. The command will 
           dabbrev-upcase-means-case-search t)
     (add-to-list 'dabbrev-ignored-buffer-modes 'pdf-view-mode))
 
-  (defun +corfu-add-cape-dabbrev-h ()
-    (add-hook 'completion-at-point-functions #'cape-dabbrev 20 t))
-
-  (dolist (h '(prog-mode-hook conf-mode-hook))
-    (add-hook h #'+corfu-add-cape-dabbrev-h))
-
   (defun +corfu-add-cape-dabbrev-dict-h ()
     (add-hook 'completion-at-point-functions (cape-capf-super #'cape-dabbrev #'cape-dict) 30 t))
 
