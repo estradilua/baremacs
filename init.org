@@ -1668,8 +1668,8 @@ Custom predicate for composing only inside LaTeX delimiters.
   :config
   (setopt citar-file-open-functions '(("pdf" . citar-file-open-external)
                                       (t . citar-file-open-external))
-          citar-bibliography '("/home/lucas/Zotero/bibs/all.bib")
-          org-cite-csl-styles-dir "/home/lucas/Zotero/styles"
+          citar-bibliography '("~/Zotero/bibs/all.bib")
+          org-cite-csl-styles-dir "~/Zotero/styles"
           citar-symbol-separator " "))
 #+end_src
 
@@ -1678,7 +1678,6 @@ Custom predicate for composing only inside LaTeX delimiters.
   :after (citar embark)
   :init
   (citar-embark-mode +1))
-  
 #+end_src
 
 *** Boox attach
@@ -2545,7 +2544,7 @@ We can also make list bullets fixed-pitch, so they are even more aligned.
 #+begin_src emacs-lisp
 (use-package org-roam
   :custom
-  (org-roam-directory (file-truename "/home/lucas/dados/notas/"))
+  (org-roam-directory (file-truename "~/dados/notas/"))
   (org-roam-capture-templates
    '(("d" "default" plain "%?"
            :target (file+head "%<%Y%m%d%H%M%S>.org" "#+title: ${title}
