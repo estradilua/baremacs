@@ -38,6 +38,13 @@ Now we make it so that =use-package= declarations are installed by Elpaca by def
 #+end_src
 
 #+begin_src emacs-lisp
+(defmacro buffer-fp-match! (regex)
+  `(lambda (buffer)
+     (let ((file (buffer-file-name buffer)))
+       (when file (string-match-p ,regex file)))))
+#+end_src
+
+#+begin_src emacs-lisp
 (defun setmap (map &rest defs)
   (while defs
     (keymap-set map (car defs) (cadr defs))
@@ -1484,14 +1491,15 @@ If SAVE is non-nil save, otherwise format candidate given action KEY."
          ("C-M-`" . popper-toggle-type))
   :init
   (setopt popper-reference-buffers
-          '("\\*Messages\\*"
+          `("\\*Messages\\*"
             "\\*Async Shell Command\\*"
             "\\*eat\\*" eat-mode
             "\\*scratch\\*"
             "\\*.* output\\*"
             help-mode
             helpful-mode
-            compilation-mode)
+            compilation-mode
+            ,(buffer-fp-match! "/\\.lake/packages/mathlib/"))
           popper-mode-line '(:eval (propertize " P " 'face 'mode-line-emphasis))
           popper-display-control 'user)
   (popper-mode +1)
@@ -1503,9 +1511,11 @@ If SAVE is non-nil save, otherwise format candidate given action KEY."
   :init
   (shackle-mode +1)
   :config
-  (setopt shackle-rules '((messages-buffer-mode :align 'below :size 0.3)
+  (setopt shackle-rules `((messages-buffer-mode :align 'below :size 0.3)
                           (eat-mode :popup t :align 'below :size 0.3 :select t)
-                          ("*scratch*" :popup t :align 'below :size 0.4 :select t))))
+                          ("*scratch*" :popup t :align 'below :size 0.4 :select t)
+                          ((:custom ,(buffer-fp-match! "/\\.lake/packages/mathlib/"))
+                           :popup t :align 'below :size 0.6 :select t))))
 #+end_src
 
 * Writing
