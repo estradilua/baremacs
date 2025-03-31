@@ -1936,11 +1936,17 @@ Custom predicate for composing only inside LaTeX delimiters.
 *** Olivetti
 #+begin_src emacs-lisp
 (use-package olivetti
-  :hook ((text-mode prog-mode) . olivetti-mode)
+  :hook (text-mode . olivetti-mode)
   :commands olivetti-mode
   :bind (:map toggle-map ("e" . olivetti-mode))
   :config
-  (setopt olivetti-body-width 100))
+  (setopt olivetti-body-width 80)
+  (add-hook 'prog-mode-hook
+            (defun prog-mode/olivetti ()
+              (setopt olivetti-body-width 100
+                      display-line-numbers t
+                      truncate-lines t)
+              (olivetti-mode +1))))
 #+end_src
 
 ** Fringes
