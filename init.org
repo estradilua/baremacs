@@ -2309,7 +2309,6 @@ level."
                               ("make"))
                   :repo "https://github.com/emacsmirror/auctex.git"
                   :branch "master")
-  :bind (:map LaTeX-mode-map ("C-c @" . citar-insert-citation))
   :hook (LaTeX-mode . (lambda () (require 'latex) (LaTeX-math-mode)))
   :config
   (add-hook 'LaTeX-mode-hook #'LaTeX-math-mode) 
@@ -2425,7 +2424,8 @@ level."
                   "f" #'eglot-texlab-forward-search)
 
     (setmap LaTeX-mode-map
-            "C-c C-a" #'eglot-texlab-build)))
+            "C-c C-a" #'eglot-texlab-build
+            "C-c @"   #'citar-insert-citation)))
 #+end_src
 
 ** Lean
