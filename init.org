@@ -111,6 +111,7 @@ This is pretty much a hack but it is short and it works.
 
 (setmap buffer-map
         "d" (defun kill-this-buffer () (interactive) (kill-buffer))
+        "i" #'ibuffer
         "r" #'revert-buffer)
 
 (setmap leader-map
@@ -128,6 +129,9 @@ This is pretty much a hack but it is short and it works.
         "." #'find-file
         "x" #'scratch-buffer
         "u" #'universal-argument)
+
+(setmap open-map
+        "f" #'make-frame)
 #+end_src
 
 ** Utility
@@ -189,6 +193,7 @@ This functionality allows binding many keys to TAB via a hook. The command will 
           evil-ex-substitute-global t
           evil-lookup-func #'helpful-at-point
           evil-shift-round nil
+          evil-shift-width 2
           evil-move-beyond-eol t
           evil-cross-lines t
           evil-want-abbrev-expand-on-insert-exit nil
@@ -205,7 +210,7 @@ This functionality allows binding many keys to TAB via a hook. The command will 
   (evil-define-key '(normal visual) 'global
     (kbd "g s s") #'evil-avy-goto-char-timer
     (kbd "g s 2") #'evil-avy-goto-char-2)
-  (evil-define-key 'motion text-mode-map
+  (evil-define-key 'motion 'global
     "j" #'evil-next-visual-line
     "k" #'evil-previous-visual-line)
   (evil-define-key 'insert 'global
@@ -385,6 +390,7 @@ The ~cape-dabbrev~ backend does not handle casing very well; see my issue [[http
 ** Consult
 #+begin_src emacs-lisp
 (use-package consult
+  :ensure (:host github :repo "soficshift/consult" :ref "flymake-better-project")
   :bind (;; C-c bindings in `mode-specific-map'
          ("C-c M-x" . consult-mode-command)
          ("C-c h" . consult-history)
@@ -434,6 +440,7 @@ The ~cape-dabbrev~ backend does not handle casing very well; see my issue [[http
          ("I" . consult-imenu-multi)
          :map code-map
          ("x" . consult-flymake)
+         ("X" . (lambda () (interactive) (consult-flymake t)))
          :map isearch-mode-map
          ("M-e" . consult-isearch-history)         ;; orig. isearch-edit-string
          ("M-s e" . consult-isearch-history)       ;; orig. isearch-edit-string
@@ -505,6 +512,30 @@ The ~cape-dabbrev~ backend does not handle casing very well; see my issue [[http
   ;; (setq consult-project-function (lambda (_) (projectile-project-root)))
   ;;;; 5. No project support
   ;; (setq consult-project-function nil)
+#+end_src
+
+** File templates
+*** Auto-insert
+#+begin_src emacs-lisp
+(use-package auto-insert-mode
+  :ensure nil)
+#+end_src
+
+*** Gitignore
+#+begin_src emacs-lisp
+(use-package gitignore-templates)
+#+end_src
+
+** AI
+*** GPTel
+#+begin_src emacs-lisp
+(use-package gptel
+  :config
+  (setopt gptel-api-key #'gptel-api-key-from-auth-source)
+
+  (gptel-make-deepseek "DeepSeek"
+    :stream t
+    :key #'gptel-api-key-from-auth-source))
 #+end_src
 
 ** Marginalia
@@ -628,7 +659,7 @@ This does not set any default keymaps. For that use
   :hook (minibuffer-setup . vertico-repeat-save))
 #+end_src
 
-**** COMMENT Posframe
+**** Posframe
 #+begin_src emacs-lisp
 (use-package vertico-posframe
   :init
@@ -637,7 +668,8 @@ This does not set any default keymaps. For that use
   (setopt vertico-posframe-border-width 1
           ;; without this, the horizontal state gets messed up
           ;; permanently if the minibuffer input is too long.
-          vertico-posframe-truncate-lines nil)
+          vertico-posframe-truncate-lines t
+          vertico-posframe-width 120)
   ;; setopt is complaining
   (setq vertico-posframe-parameters '((left-fringe . 8) (right-fringe . 8))))
 #+end_src
@@ -663,7 +695,7 @@ This does not set any default keymaps. For that use
   :config
   (setopt corfu-cycle t
           corfu-auto t
-          corfu-auto-prefix 4
+          corfu-auto-prefix 2
           corfu-count 16
           corfu-auto-delay 0.1
           corfu-preselect 'valid
@@ -864,7 +896,7 @@ Let's group by projects using a handy package.
   :custom-face
   (eglot-diagnostic-tag-unnecessary-face ((t (:inherit shadow))))
   :custom
-  (eglot-code-action-indicator (nerd-icons-octicon "nf-oct-light_bulb"))
+  (eglot-code-action-indicator "a")
   :config
   (setcdr (assoc '(latex-mode plain-tex-mode context-mode texinfo-mode bibtex-mode tex-mode)
                  eglot-server-programs)
@@ -872,13 +904,12 @@ Let's group by projects using a handy package.
   (modal-setmap eglot-mode-map code-map
                 "a" #'eglot-code-actions
                 "f" #'eglot-format
-                "I" #'consult-eglot-symbols))
-#+end_src
+                "I" #'consult-eglot-symbols)
 
-*** Semtok
-#+begin_src emacs-lisp
-(use-package eglot-semantic-tokens
-  :ensure (:repo "https://codeberg.org/eownerdead/eglot-semantic-tokens.git"))
+  (advice-add 'eglot--format-markup :around
+              (defun eglot--format-markup-ad (fn markup &optional mode)
+                (let ((markdown-fontify-code-block-default-mode (or mode major-mode)))
+                  (apply fn markup mode)))))
 #+end_src
 
 *** Consult integration
@@ -908,7 +939,7 @@ Let's group by projects using a handy package.
   :custom-face
   (sideline-default ((t (:inherit fixed-pitch))))
   :config
-  (setopt sideline-delay 0))
+  (setopt sideline-delay 0.2))
 #+end_src
 
 #+begin_src emacs-lisp
@@ -916,6 +947,7 @@ Let's group by projects using a handy package.
   :hook (flymake-mode . sideline-mode)
   :custom-face
   (sideline-flymake-error ((t (:inherit (error fixed-pitch)))))
+  (sideline-flymake-note ((t (:inherit (success fixed-pitch)))))
   (sideline-flymake-warning ((t (:inherit (warning fixed-pitch)))))
   (sideline-flymake-success ((t (:inherit (success fixed-pitch)))))
   :init
@@ -977,39 +1009,6 @@ Let's group by projects using a handy package.
   (setopt eldoc-box-at-point-position-function #'eldoc-box-better-at-point-position-function))
 #+end_src
 
-** File templates
-*** Auto-insert
-#+begin_src emacs-lisp
-(use-package auto-insert-mode
-  :ensure nil)
-#+end_src
-
-*** Gitignore
-#+begin_src emacs-lisp
-(use-package gitignore-templates)
-#+end_src
-
-** Good scrolling
-#+begin_src emacs-lisp
-(setopt pixel-scroll-precision-interpolation-factor 0.1
-        pixel-scroll-precision-interpolate-mice t
-        pixel-scroll-precision-interpolate-page t
-        pixel-scroll-precision-interpolation-total-time 0.15)
-#+end_src
-
-#+begin_src emacs-lisp
-(use-package ultra-scroll
-  :ensure (:repo "https://github.com/jdtsmith/ultra-scroll")
-  :init
-  (ultra-scroll-mode +1)
-  :custom
-  (auto-window-vscroll nil)            ; Don't adjust window-vscroll for tall lines
-  (next-screen-context-lines 4)        ; Preserve this many lines when jumping a screenful
-  (scroll-margin 0)                    ; Scroll when cursor is this many lines to screen edge
-  (scroll-conservatively 101)          ; Only 'jump' when moving this far off the screen
-  (scroll-preserve-screen-position t)) ; Preserve line/column (nicer M-v, C-v, etc.)
-#+end_src
-
 ** Helpful
 #+begin_src emacs-lisp
 (use-package helpful
@@ -1029,8 +1028,12 @@ Let's group by projects using a handy package.
         frame-resize-pixelwise t
         scroll-conservatively 20
         backup-inhibited t
+        confirm-kill-emacs #'y-or-n-p
+        use-dialog-box nil
+        standard-indent 2
         ring-bell-function #'ignore
         kill-buffer-quit-windows t
+        text-scale-mode-step 1.05
         revert-without-query '(".")
         display-line-numbers-width-start t
         use-short-answers t
@@ -1038,6 +1041,8 @@ Let's group by projects using a handy package.
         sentence-end-double-space nil
         auth-sources `(,(expand-file-name "authinfo.gpg" user-emacs-directory)))
 
+(undelete-frame-mode +1)
+(winner-mode +1)
 (defun display-startup-echo-area-message ())
 #+end_src
 
@@ -1094,12 +1099,18 @@ Let's add some keys to it.
   :hook (prog-mode . diff-hl-mode)
   :commands (diff-hl-stage-dwim)
   :init
-  (setmap git-map "s" (cons "Stage hunk" #'diff-hl-stage-dwim))
+  (setmap git-map
+          "s" (cons "Stage hunk" #'diff-hl-stage-dwim)
+          "r" (cons "Revert hunk" #'diff-hl-revert-hunk)
+          "h" (cons "Show hunk" #'diff-hl-show-hunk))
   :config
   (diff-hl-flydiff-mode +1)
   (setopt diff-hl-show-staged-changes nil
           diff-hl-draw-borders nil
-          diff-hl-fringe-bmp-function #'diff-hl-fringe-bmp-from-pos))
+          diff-hl-fringe-bmp-function #'diff-hl-fringe-bmp-from-pos
+          diff-hl-margin-symbols-alist
+            '((insert . " ") (delete . " ") (change . " ")
+              (unknown . " ") (ignored . " "))))
 #+end_src
 
 ** Persistence
@@ -1119,11 +1130,11 @@ Let's add some keys to it.
 
 *** Desktop
 #+begin_src emacs-lisp
-;; (add-hook 'elpaca-after-init-hook
-;;   (defun enable-desktop-save-h ()
-;;     (desktop-read)
-;;     (desktop-save-mode 1))
-;;   99)
+(add-hook 'elpaca-after-init-hook
+  (defun enable-desktop-save-h ()
+    (desktop-read)
+    (desktop-save-mode 1))
+  99)
 #+end_src
 
 *** Tab-bookmark
@@ -1136,6 +1147,46 @@ Let's add some keys to it.
 #+begin_src emacs-lisp
 (with-eval-after-load 'emacs
   (save-place-mode +1))
+#+end_src
+
+** Scrolling
+*** Recenter after a long scroll
+Thank you so much, [[https://emacs.stackexchange.com/a/55478]]!
+
+#+begin_src emacs-lisp
+(add-hook 'window-scroll-functions
+          (defun window-scroll-functions/recenter-after-jump (window new-win-start)
+            (with-selected-window window
+              (let* ((new-start-line (line-number-at-pos new-win-start))
+                     (old-start-line (or (bound-and-true-p last-start-line-memo)
+                                         (line-number-at-pos (point))))
+                     (distance (abs (- old-start-line new-start-line))))
+                (when (and (> distance 5)
+                           (not (eq last-command 'next-line))
+                           (not (get last-command 'scroll-command)))
+                  (recenter))
+                (setq-local last-start-line-memo new-start-line)))))
+#+end_src
+
+*** Fast and good scrolling
+#+begin_src emacs-lisp
+(setopt pixel-scroll-precision-interpolation-factor 0.1
+        pixel-scroll-precision-interpolate-mice t
+        pixel-scroll-precision-interpolate-page t
+        pixel-scroll-precision-interpolation-total-time 0.15)
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package ultra-scroll
+  :ensure (:repo "https://github.com/jdtsmith/ultra-scroll")
+  :init
+  (ultra-scroll-mode +1)
+  :custom
+  (auto-window-vscroll nil)            ; Don't adjust window-vscroll for tall lines
+  (next-screen-context-lines 4)        ; Preserve this many lines when jumping a screenful
+  (scroll-margin 0)                    ; Scroll when cursor is this many lines to screen edge
+  (scroll-conservatively 101)          ; Only 'jump' when moving this far off the screen
+  (scroll-preserve-screen-position t)) ; Preserve line/column (nicer M-v, C-v, etc.)
 #+end_src
 
 ** Projects
@@ -1266,6 +1317,7 @@ Let's add some keys to it.
 (use-package gif-screencast
   :config
   (setopt gif-screencast-program "grim"
+          gif-screencast-capture-prefer-internal t
           gif-screencast-args '()))
 #+end_src
 
@@ -1295,7 +1347,7 @@ If SAVE is non-nil save, otherwise format candidate given action KEY."
             (save-buffer)
             (kill-buffer)))
       (list key word "Directory")))
-  (setopt jinx--save-keys (map-insert jinx--save-keys ?/ #'jinx--save-dir)))
+  (add-to-list 'jinx--save-keys '(?/ . jinx--save-dir)))
 #+end_src
 
 ** Server
@@ -1314,7 +1366,8 @@ If SAVE is non-nil save, otherwise format candidate given action KEY."
   :config
   (setopt elcord-use-major-mode-as-main-icon t
           elcord-idle-message "cat is sleeping on the keyboard")
-  (add-to-list 'elcord-mode-icon-alist '(LaTeX-mode . "latex-mode_icon")))
+  (add-to-list 'elcord-mode-icon-alist '(LaTeX-mode . "latex-mode_icon"))
+  (add-to-list 'elcord-mode-icon-alist '(haskell-ts-mode . "haskell-mode_icon")))
 #+end_src
 
 ** Tabs
@@ -1423,7 +1476,9 @@ If SAVE is non-nil save, otherwise format candidate given action KEY."
 #+begin_src emacs-lisp
 (use-package eat
   :init
-  (setmap open-map "t" (cons "Terminal" (cmd! (eat nil t))))
+  (setmap open-map
+          "T" (cons "Terminal" #'eat-other-window)
+          "t" (cons "Terminal (project)" #'eat-project-other-window))
   :config
   (setq eat-kill-buffer-on-exit t
         eat-shell "zsh"))
@@ -1445,7 +1500,8 @@ If SAVE is non-nil save, otherwise format candidate given action KEY."
           '((kdl "https://github.com/tree-sitter-grammars/tree-sitter-kdl.git")
             (typescript "https://github.com/tree-sitter/tree-sitter-typescript.git" nil "typescript/src")
             (tsx "https://github.com/tree-sitter/tree-sitter-typescript.git" nil "tsx/src")
-            (rust "https://github.com/tree-sitter/tree-sitter-rust.git"))))
+            (rust "https://github.com/tree-sitter/tree-sitter-rust.git")
+            (haskell "https://github.com/tree-sitter/tree-sitter-haskell.git"))))
 #+end_src
 *** External
 #+begin_src emacs-lisp
@@ -1463,7 +1519,7 @@ If SAVE is non-nil save, otherwise format candidate given action KEY."
           "C-R" #'rotate-frame-anticlockwise
           "C-t" #'transpose-frame))
 #+end_src
-**** Popper
+**** TODO Popper
 #+begin_src emacs-lisp
 (use-package popper
   :bind (("C-`"   . popper-toggle)
@@ -1485,6 +1541,9 @@ If SAVE is non-nil save, otherwise format candidate given action KEY."
   (popper-mode +1)
   (popper-tab-line-mode +1)) ; For echo area hints
 #+end_src
+
+- [ ] Write a proper ~popper-group-function~.
+
 **** Shackle
 #+begin_src emacs-lisp
 (use-package shackle
@@ -1644,7 +1703,6 @@ Custom predicate for composing only inside LaTeX delimiters.
 *** Citar
 #+begin_src emacs-lisp
 (use-package citar
-  :bind (:map LaTeX-mode-map ("C-c @" . citar-insert-citation))
   :config
   (setopt citar-file-open-functions '(("pdf" . citar-file-open-external)
                                       (t . citar-file-open-external))
@@ -1876,7 +1934,7 @@ Custom predicate for composing only inside LaTeX delimiters.
   (add-hook 'mixed-pitch-mode-hook #'add-fixed-face-to-prespace)
   (add-hook 'mixed-pitch-mode-hook
             (defun mixed-pitch-line-spacing-h ()
-              (setq line-spacing 5)))
+              (setq line-spacing 6)))
   (add-to-list 'mixed-pitch-fixed-pitch-faces 'rainbow-delimiters-depth-1-face))
 
 (use-package rainbow-delimiters
@@ -1900,25 +1958,32 @@ Custom predicate for composing only inside LaTeX delimiters.
   (global-ligature-mode t)
   :config
   (ligature-set-ligatures
-   'haskell-mode '("</" "</>" "/>" "~-" "-~" "~@" "<~" "<~>" "<~~" "~>" "~~"
-                   "~~>" ">=" "<=" "<!--" "##" "###" "####" "|-" "-|" "|->"
-                   "<-|" ">-|" "|-<" "|=" "|=>" "<-" "<--" "-->" "->" "-<"
-                   ">->" ">>-" "<<-" "<->" "->>" "-<<" "<-<" "==>" "=>" "=/="
-                   "!==" "!=" "<==" ">>=" "=>>" ">=>" "<=>" "<=<" "<<=" "=<<"
-                   ".-" ".=" "=:=" "=!=" "==" "===" "::" ":=" 
-                   "<|" "<|>" "|>" "<>" "<$" "<$>" "$>" "<+" "<+>" "+>"
-                   "?=" "/=" "/==" "/\\" "\\/" "__" "&&" "++" "+++")))
+   'haskell-ts-mode
+   '("</" "</>" "/>" "~-" "-~" "~@" "<~" "<~>" "<~~" "~>" "~~"
+     "~~>" ">=" "<=" "<!--" "##" "###" "####" "|-" "-|" "|->"
+     "<-|" ">-|" "|-<" "|=" "|=>" "<-" "<--" "-->" "->" "-<"
+     ">->" ">>-" "<<-" "<->" "->>" "-<<" "<-<" "==>" "=>" "=/="
+     "!==" "!=" "<==" ">>=" "=>>" ">=>" "<=>" "<=<" "<<=" "=<<"
+     ".-" ".=" "=:=" "=!=" "==" "===" "::" ":=" 
+     "<|" "<|>" "|>" "<>" "<$" "<$>" "$>" "<+" "<+>" "+>"
+     "?=" "/=" "/==" "/\\" "\\/" "__" "&&" "++" "+++")))
 #+end_src
 
 *** Unicode
 #+begin_src emacs-lisp
-(setopt use-default-font-for-symbols t)
+(setopt use-default-font-for-symbols t
+        scalable-fonts-allowed t
+        face-font-selection-order '(:height :width :weight :slant)
+        face-font-rescale-alist '(("JuliaMono" . 0.99)
+                                  ("Symbols Nerd Font Mono" . 0.90)))
 
 (defun adjust-symbolic-fonts ()
+  (setup-default-fontset)
   (dolist (script '(symbol mathematical unicode))
-    (set-fontset-font t script (font-spec :family "Julia Mono") nil 'prepend))
+    (set-fontset-font t script (font-spec :family "Julia Mono" :weight 'normal))
+    (set-fontset-font t script (font-spec :family "Victor Mono") nil 'append))
   (dolist (script '(han kana cjk-misc kanbun bopomofo ideographic-description))
-    (set-fontset-font t script (font-spec :family "IBM Plex Sans JP") nil 'prepend))
+    (set-fontset-font t script (font-spec :family "IBM Plex Sans JP")))
   (set-fontset-font t 'emoji "Twemoji" nil 'prepend))
 
 (adjust-symbolic-fonts)
@@ -1943,9 +2008,9 @@ Custom predicate for composing only inside LaTeX delimiters.
   (setopt olivetti-body-width 80)
   (add-hook 'prog-mode-hook
             (defun prog-mode/olivetti ()
-              (setopt olivetti-body-width 100
-                      display-line-numbers t
-                      truncate-lines t)
+              (setq-local olivetti-body-width 100
+                          truncate-lines t)
+              (display-line-numbers-mode +1)
               (olivetti-mode +1))))
 #+end_src
 
@@ -1994,8 +2059,8 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
   :init
   (doom-modeline-mode 1)
   :custom-face
-  (mode-line ((t (:family "Julia Mono" :height 108))))
-  (mode-line-inactive ((t (:family "Julia Mono" :height 108))))
+  (mode-line ((t (:family "Julia Mono" :height 110))))
+  (mode-line-inactive ((t (:family "Julia Mono" :height 110))))
   (doom-modeline-buffer-modified ((t (:underline t))))
   :config
   (setopt doom-modeline-irc nil
@@ -2155,6 +2220,14 @@ level."
 ** Haskell
 #+begin_src emacs-lisp
 (use-package haskell-mode)
+
+(use-package haskell-ts-mode
+  :config
+  (setopt haskell-ts-prettify-words t)
+  (add-hook 'haskell-ts-mode 'prettify-symbols-mode)
+  (with-eval-after-load 'eglot
+    (add-to-list 'eglot-server-programs
+                 '(haskell-ts-mode . ("haskell-language-server-wrapper" "--lsp")))))
 #+end_src
 
 *** Eglot
@@ -2234,8 +2307,11 @@ level."
                               ("./configure"
                                "--with-texmf-dir=$(dirname $(kpsexpand '$TEXMFHOME'))")
                               ("make")))
-  :hook ((LaTeX-mode org-mode) . (lambda () (require 'latex) (LaTeX-math-mode)))
+  ;; :bind (:map LaTeX-mode-map ("C-c @" . citar-insert-citation))
   :config
+  (add-hook 'LaTeX-mode-hook #'LaTeX-math-mode) 
+  (add-hook 'LaTeX-mode-hook #'diff-hl-mode)
+  (add-hook 'LaTeX-mode-hook #'diff-hl-margin-local-mode)
   (setopt TeX-parse-self t
           TeX-auto-save t))
 #+end_src
@@ -2246,7 +2322,7 @@ level."
   (defun my/preview-scale-from-face ()
       (let ((d (/ (preview-inherited-face-attribute 'preview-reference-face :height
                                                     'default)
-                  10.0)))
+                  9.3)))
         (* (/ d (preview-document-pt))
            (expt text-scale-mode-step text-scale-mode-amount))))
   (setopt preview-leave-open-previews-visible t
@@ -2271,7 +2347,10 @@ level."
                        (skip-chars-forward "[:space:]")
                        (if (eq (point) (overlay-start ov))
                            (concat "\n" (buffer-substring-no-properties (pos-bol) (point)))
-                         ""))))))))
+                         "")))))))
+  (advice-add 'preview-ascent-from-bb :filter-return
+              (defun preview-ascent-from-bb/add-offset (ascent)
+                (min 100 (+ ascent 3)))))
 #+end_src
 
 *** Reftex
@@ -2355,7 +2434,17 @@ level."
 
 ** Markdown
 #+begin_src emacs-lisp
-(use-package markdown-mode)
+(use-package markdown-mode
+  :custom
+  (markdown-fontify-code-blocks-natively t))
+#+end_src
+
+** Rust
+#+begin_src emacs-lisp
+(add-hook 'conf-toml-mode-hook 'eglot-ensure)
+(with-eval-after-load 'eglot
+  (add-to-list 'eglot-server-programs
+               '(conf-toml-mode . ("taplo" "lsp" "stdio"))))
 #+end_src
 
 ** Org
