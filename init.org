@@ -2306,8 +2306,11 @@ level."
   :ensure (auctex :pre-build (("./autogen.sh")
                               ("./configure"
                                "--with-texmf-dir=$(dirname $(kpsexpand '$TEXMFHOME'))")
-                              ("make")))
-  ;; :bind (:map LaTeX-mode-map ("C-c @" . citar-insert-citation))
+                              ("make"))
+                  :repo "https://github.com/emacsmirror/auctex.git"
+                  :branch "master")
+  :bind (:map LaTeX-mode-map ("C-c @" . citar-insert-citation))
+  :hook (LaTeX-mode . (lambda () (require 'latex) (LaTeX-math-mode)))
   :config
   (add-hook 'LaTeX-mode-hook #'LaTeX-math-mode) 
   (add-hook 'LaTeX-mode-hook #'diff-hl-mode)
