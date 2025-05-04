@@ -2,6 +2,11 @@
 #+startup: content
 #+todo: ORGANIZE(o) TODO(t) | DONE (d)
 
+* TODO Things to think and organize
+- Note to future self: [[https://lists.gnu.org/archive/html/emacs-diffs/2025-04/msg00468.html][this]] stupid commit seems to break most face customizations. [[*Modeline]], [[*Tabs]], etc.
+* TODO Strange bugs and their stranger fixes
+- turns out the newline character ~\n~ is not in the space category of the org-mode syntax table, or at least it should not be. If this is not the case, you start getting errors with ~org-edit-src-block~. At least one instance of this issue was fixed by deleting the desktop file so that the problematic org file would not be restored from it.
+
 * Elpaca setup
 #+begin_src emacs-lisp
 ;;; -*- lexical-binding: t; -*-
@@ -170,7 +175,7 @@ This functionality allows binding many keys to TAB via a hook. The command will 
 ** Smartparens
 #+begin_src emacs-lisp
 (use-package smartparens
-  :hook ((prog-mode text-mode) . smartparens-mode)
+  :hook (prog-mode text-mode)
   :config
   (add-hook 'tab-actions 'sp-up-sexp 10)
   (require 'smartparens-config)
@@ -960,7 +965,8 @@ Let's group by projects using a handy package.
 (use-package eldoc
   :ensure nil
   :config
-  (setopt eldoc-echo-area-use-multiline-p nil))
+  (setopt eldoc-echo-area-use-multiline-p nil
+          eldoc-idle-delay 0.1))
 #+end_src
 
 *** Eldoc-box
@@ -1006,7 +1012,8 @@ Let's group by projects using a handy package.
                 (max 0 (- y height))
               ;; normal, just return y + em
               (+ y em)))))
-  (setopt eldoc-box-at-point-position-function #'eldoc-box-better-at-point-position-function))
+  (setopt eldoc-box-at-point-position-function #'eldoc-box-better-at-point-position-function)
+  (require 'markdown-mode))
 #+end_src
 
 ** Helpful
@@ -1196,16 +1203,17 @@ Thank you so much, [[https://emacs.stackexchange.com/a/55478]]!
   :init
   (require 'project)
   :config
+  (defun project-remember-and-open (dir &optional dont-open)
+    (interactive "DDirectory: \nP")
+    (project--ensure-read-project-list)
+    (if-let* ((project (project--find-in-directory dir)))
+        (progn (project-remember-project project)
+               (message "Found %s..." (project-root project))
+               (unless dont-open
+                 (project-switch-project (project-root project))))
+      (message "No projects were found")))
   (setmap project-map
-          "a" (lambda (dir &optional dont-open)
-                (interactive "DDirectory: \nP")
-                (project--ensure-read-project-list)
-                (if-let* ((project (project--find-in-directory dir)))
-                    (progn (project-remember-project project)
-                           (message "Found %s..." (project-root project))
-                           (unless dont-open
-                             (project-switch-project (project-root project))))
-                  (message "No projects were found"))) 
+          "a" #'project-remember-and-open 
           "A" #'project-remember-projects-under
           "d" #'project-forget-project
           "D" #'project-forget-projects-under)
@@ -1356,7 +1364,7 @@ If SAVE is non-nil save, otherwise format candidate given action KEY."
   :ensure nil
   :init
   (server-force-delete)
-  (server-start t t))
+  (server-start nil t))
 #+end_src
 
 ** Stupidity
@@ -1902,6 +1910,7 @@ Custom predicate for composing only inside LaTeX delimiters.
 (use-package evil-tex
   :hook ((LaTeX-mode org-mode) . evil-tex-mode))
 #+end_src
+
 ** Denote and friends
 #+begin_src emacs-lisp
 (use-package denote)
@@ -2444,6 +2453,7 @@ level."
 
 ** Rust
 #+begin_src emacs-lisp
+(add-to-list 'auto-mode-alist '("\\.rs\\'" . rust-ts-mode))
 (add-hook 'conf-toml-mode-hook 'eglot-ensure)
 (with-eval-after-load 'eglot
   (add-to-list 'eglot-server-programs
