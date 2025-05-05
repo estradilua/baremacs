@@ -1169,7 +1169,8 @@ Thank you so much, [[https://emacs.stackexchange.com/a/55478]]!
                                          (line-number-at-pos (point))))
                      (distance (abs (- old-start-line new-start-line))))
                 (when (and (> distance 5)
-                           (not (eq last-command 'next-line))
+                           (not (memq last-command '(next-line
+                                                     recenter-top-bottom)))
                            (not (get last-command 'scroll-command)))
                   (recenter))
                 (setq-local last-start-line-memo new-start-line)))))
