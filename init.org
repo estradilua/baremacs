@@ -2680,6 +2680,18 @@ We can also make list bullets fixed-pitch, so they are even more aligned.
               (set (make-local-variable 'evil-normal-state-cursor) (list nil))))
   (advice-add 'pdf-view-enlarge :after (lambda (_) (pdf-view-center-in-window))))
 #+end_src
+** Typescript
+#+begin_src emacs-lisp
+(use-package typescript-ts-mode
+  :ensure nil
+  :mode (("\\.ts\\'" . typescript-ts-mode)
+         ("\\.tsx\\'" . tsx-ts-mode))
+  :config
+  (add-to-list 'eglot-server-programs
+               (cons '(typescript-ts-base-mode :language-id "typescript")
+                     '("npx" "typescript-language-server" "--stdio")))
+  (add-hook 'typescript-ts-base-mode-hook #'eglot-ensure))
+#+end_src
 
 ** YAML
 #+begin_src emacs-lisp
