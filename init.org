@@ -2286,6 +2286,7 @@ level."
 ** KDL
 #+begin_src emacs-lisp
 (use-package kdl-ts-mode
+  :mode "\\.kdl\\'"
   :ensure (:repo "https://github.com/dataphract/kdl-ts-mode.git" :main "kdl-ts-mode.el"))
 #+end_src
 
