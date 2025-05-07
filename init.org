@@ -2232,6 +2232,7 @@ level."
 (use-package haskell-mode)
 
 (use-package haskell-ts-mode
+  :mode "\\.hs\\'"
   :config
   (setopt haskell-ts-prettify-words t)
   (add-hook 'haskell-ts-mode 'prettify-symbols-mode)
