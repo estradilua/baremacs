@@ -1,3 +1,4 @@
+#+title: baremacs
 #+property: header-args :lexical t :results none
 #+startup: content
 #+todo: ORGANIZE(o) TODO(t) | DONE (d)
@@ -72,7 +73,7 @@ This is pretty much a hack but it is short and it works.
     (set-keymap-parent new-leader leader-map)
     (apply #'setmap new-map defs)
     (keymap-substitute new-leader map new-map)
-    (evil-define-key* 'normal active-map leader-key new-leader)
+    (evil-define-key* 'motion active-map leader-key new-leader)
     (evil-define-key* 'insert active-map leader-alt-key new-leader)))
 #+end_src
 
@@ -212,7 +213,7 @@ This functionality allows binding many keys to TAB via a hook. The command will 
   (set-keymap-parent window-map evil-window-map)
   (keymap-set evil-motion-state-map "C-w" window-map)
 
-  (evil-define-key '(normal visual) 'global
+  (evil-define-key '(motion visual) 'global
     (kbd "g s s") #'evil-avy-goto-char-timer
     (kbd "g s 2") #'evil-avy-goto-char-2)
   (evil-define-key 'motion 'global
@@ -223,8 +224,9 @@ This functionality allows binding many keys to TAB via a hook. The command will 
     (kbd "M-SPC") leader-map
     (kbd "M-TAB") #'completion-at-point
     (kbd "C-g") #'evil-normal-state)
-  (evil-define-key '(normal emacs) 'global
+  (evil-define-key 'motion 'global
     (kbd "SPC") leader-map
+    (kbd "C-u") #'evil-scroll-up
     (kbd "C-t") nil)
 
   (setmap buffer-map
@@ -251,6 +253,15 @@ This functionality allows binding many keys to TAB via a hook. The command will 
   :init
   (setopt evil-escape-key-sequence "jk")
   (evil-escape-mode))
+#+end_src
+
+*** Anzu
+#+begin_src emacs-lisp
+(use-package evil-anzu
+  :after (evil)
+  :init
+  (global-anzu-mode +1)
+  (require 'evil-anzu))
 #+end_src
 
 *** Exchange
@@ -673,8 +684,7 @@ This does not set any default keymaps. For that use
   (setopt vertico-posframe-border-width 1
           ;; without this, the horizontal state gets messed up
           ;; permanently if the minibuffer input is too long.
-          vertico-posframe-truncate-lines t
-          vertico-posframe-width 120)
+          vertico-posframe-truncate-lines t)
   ;; setopt is complaining
   (setq vertico-posframe-parameters '((left-fringe . 8) (right-fringe . 8))))
 #+end_src
@@ -700,7 +710,7 @@ This does not set any default keymaps. For that use
   :config
   (setopt corfu-cycle t
           corfu-auto t
-          corfu-auto-prefix 2
+          corfu-auto-prefix 3
           corfu-count 16
           corfu-auto-delay 0.1
           corfu-preselect 'valid
@@ -893,19 +903,17 @@ Let's group by projects using a handy package.
 
 ** Eglot
 #+begin_src emacs-lisp
-(use-package jsonrpc
-  :ensure nil)
-
 (use-package eglot
   :ensure nil
   :custom-face
   (eglot-diagnostic-tag-unnecessary-face ((t (:inherit shadow))))
   :custom
   (eglot-code-action-indicator "a")
+  (eglot-events-buffer-config '(:size 0 :format short))
   :config
-  (setcdr (assoc '(latex-mode plain-tex-mode context-mode texinfo-mode bibtex-mode tex-mode)
-                 eglot-server-programs)
-          '("texlab"))
+  (add-to-list 'eglot-server-programs
+               (cons '(latex-mode plain-tex-mode context-mode bibtex-mode tex-mode)
+                     '("texlab")))
   (modal-setmap eglot-mode-map code-map
                 "a" #'eglot-code-actions
                 "f" #'eglot-format
@@ -914,7 +922,8 @@ Let's group by projects using a handy package.
   (advice-add 'eglot--format-markup :around
               (defun eglot--format-markup-ad (fn markup &optional mode)
                 (let ((markdown-fontify-code-block-default-mode (or mode major-mode)))
-                  (apply fn markup mode)))))
+                  (apply fn markup mode))))
+  (require 'markdown-mode))
 #+end_src
 
 *** Consult integration
@@ -1012,8 +1021,7 @@ Let's group by projects using a handy package.
                 (max 0 (- y height))
               ;; normal, just return y + em
               (+ y em)))))
-  (setopt eldoc-box-at-point-position-function #'eldoc-box-better-at-point-position-function)
-  (require 'markdown-mode))
+  (setopt eldoc-box-at-point-position-function #'eldoc-box-better-at-point-position-function))
 #+end_src
 
 ** Helpful
@@ -1103,7 +1111,7 @@ Let's add some keys to it.
 *** Gutter (diff-hl)
 #+begin_src emacs-lisp
 (use-package diff-hl
-  :hook (prog-mode . diff-hl-mode)
+  :hook ((prog-mode conf-mode text-mode) . diff-hl-mode)
   :commands (diff-hl-stage-dwim)
   :init
   (setmap git-map
@@ -1222,7 +1230,7 @@ Thank you so much, [[https://emacs.stackexchange.com/a/55478]]!
   (keymap-set leader-map "SPC" #'project-find-file)
   (setopt project-switch-commands #'project-find-file
           project-prompter #'project-prompt-project-dir
-          project-vc-extra-root-markers '("latexmkrc")))
+          project-vc-extra-root-markers '("latexmkrc" "package.json")))
 #+end_src
 *** COMMENT Perject
 #+begin_src emacs-lisp
@@ -1955,7 +1963,7 @@ Custom predicate for composing only inside LaTeX delimiters.
 ** Fonts and faces
 #+begin_src emacs-lisp
 (custom-set-faces
- '(default ((t (:weight medium :height 130 :family "Victor Mono"))))
+ '(default ((t (:weight medium :height 100 :family "Victor Mono"))))
  '(fixed-pitch ((t (:family "Victor Mono"))))
  '(variable-pitch ((t (:weight normal :family "IBM Plex Sans"))))
  '(ef-themes-ui-variable-pitch ((t (:inherit variable-pitch)))))
@@ -2069,16 +2077,16 @@ This is a beatiful, extremely readable and highly customizable theme. Protesilao
   :init
   (doom-modeline-mode 1)
   :custom-face
-  (mode-line ((t (:family "Julia Mono" :height 110))))
-  (mode-line-inactive ((t (:family "Julia Mono" :height 110))))
+  (mode-line ((t (:family "Julia Mono" :height 95))))
+  (mode-line-inactive ((t (:family "Julia Mono" :height 95))))
   (doom-modeline-buffer-modified ((t (:underline t))))
   :config
   (setopt doom-modeline-irc nil
-          doom-modeline-height 22
+          doom-modeline-height 18
           doom-modeline-buffer-encoding nil
           doom-modeline-workspace-name nil
           doom-modeline-display-misc-in-all-mode-lines nil
-          doom-modeline-bar-width 1
+          doom-modeline-bar-width 0
           doom-modeline-icon nil))
 #+end_src
 
@@ -2689,10 +2697,15 @@ We can also make list bullets fixed-pitch, so they are even more aligned.
   :mode (("\\.ts\\'" . typescript-ts-mode)
          ("\\.tsx\\'" . tsx-ts-mode))
   :config
-  (add-to-list 'eglot-server-programs
-               (cons '(typescript-ts-base-mode :language-id "typescript")
-                     '("npx" "typescript-language-server" "--stdio")))
   (add-hook 'typescript-ts-base-mode-hook #'eglot-ensure))
+
+(with-eval-after-load 'eglot
+  (add-to-list 'eglot-server-programs
+               (cons '((js-mode :language-id "javascript")
+                       (js-ts-mode :language-id "javascript")
+                       (tsx-ts-mode :language-id "typescriptreact")
+                       (typescript-ts-mode :language-id "typescript"))
+                     '("npx" "typescript-language-server" "--stdio"))))
 #+end_src
 
 ** YAML
